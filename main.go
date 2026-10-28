@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/ktsoator/threadmark/internal/skills"
 	"github.com/ktsoator/threadmark/internal/tools"
 	"github.com/openai/openai-go/v3/option"
 	"google.golang.org/adk/v2/agent"
@@ -19,6 +20,8 @@ import (
 	"google.golang.org/adk/v2/cmd/launcher/full"
 	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/session/database"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/skilltoolset"
 )
 
 func main() {
@@ -56,6 +59,15 @@ func main() {
 		log.Fatalf("Failed to create tools: %v", err)
 	}
 
+	skillSource, skillsDirs, err := skills.NewSource(cwd)
+	if err != nil {
+		log.Fatalf("Failed to discover skill directories: %v", err)
+	}
+	skillTools, err := skilltoolset.New(ctx, skilltoolset.Config{Source: skillSource})
+	if err != nil {
+		log.Fatalf("Failed to create skill toolset: %v", err)
+	}
+
 	assistant, err := llmagent.New(llmagent.Config{
 		Name:        "assistant",
 		Model:       model,
@@ -70,6 +82,7 @@ Use bash to list and search files and to run programs or tests. Each call starts
 Check tool errors and command exit codes, and use the results to decide what to do next.
 Report changes and verification accurately. Do not claim an operation succeeded unless its tool result confirms it.`, cwd),
 		Tools:                localTools,
+		Toolsets:             []tool.Toolset{skillTools},
 		OnToolErrorCallbacks: []llmagent.OnToolErrorCallback{tools.RecoverError},
 	})
 	if err != nil {
@@ -85,6 +98,9 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		log.Fatalf("Failed to migrate session database: %v", err)
 	}
 
+	for _, dir := range skillsDirs {
+		log.Printf("Skills directory: %s", dir)
+	}
 	log.Printf("Session database: %s", dbPath)
 	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelName)
 	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
