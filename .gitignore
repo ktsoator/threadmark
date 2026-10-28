@@ -28,6 +28,10 @@ go.work.sum
 # env file
 .env
 
+# Local session database and SQLite sidecar files
+/threadmark.db
+/threadmark.db-*
+
 # Editor/IDE
 # .idea/
 # .vscode/
