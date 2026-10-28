@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/ktsoator/threadmark/internal/tools"
 	"github.com/openai/openai-go/v3/option"
 	"google.golang.org/adk/v2/agent"
@@ -16,7 +18,7 @@ import (
 	"google.golang.org/adk/v2/cmd/launcher"
 	"google.golang.org/adk/v2/cmd/launcher/full"
 	"google.golang.org/adk/v2/model/openaimodel"
-	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/session/database"
 )
 
 func main() {
@@ -74,10 +76,20 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		log.Fatalf("Failed to create agent: %v", err)
 	}
 
+	dbPath := filepath.Join(cwd, "threadmark.db")
+	sessionService, err := database.NewSessionService(sqlite.Open(dbPath))
+	if err != nil {
+		log.Fatalf("Failed to create session database: %v", err)
+	}
+	if err := database.AutoMigrate(sessionService); err != nil {
+		log.Fatalf("Failed to migrate session database: %v", err)
+	}
+
+	log.Printf("Session database: %s", dbPath)
 	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelName)
 	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(assistant),
-		SessionService: session.InMemoryService(),
+		SessionService: sessionService,
 	}, os.Args[1:]); err != nil {
 		log.Fatalf("Failed to run agent: %v", err)
 	}
