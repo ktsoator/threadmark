@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/ktsoator/threadmark/internal/tools"
 	"github.com/openai/openai-go/v3/option"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/cmd/launcher"
-	"google.golang.org/adk/v2/cmd/launcher/console"
+	"google.golang.org/adk/v2/cmd/launcher/full"
 	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/session"
 )
@@ -29,9 +33,10 @@ func main() {
 	}
 
 	model, err := openaimodel.NewModel(ctx, modelName, &openaimodel.ClientConfig{
-		APIKey:  apiKey,
-		BaseURL: "https://api.deepseek.com",
-		API:     openaimodel.APIChatCompletions,
+		APIKey:     apiKey,
+		BaseURL:    "https://api.deepseek.com",
+		API:        openaimodel.APIChatCompletions,
+		HTTPClient: &http.Client{Timeout: 90 * time.Second},
 		Options: []option.RequestOption{
 			option.WithJSONSet("thinking", map[string]string{"type": "disabled"}),
 		},
@@ -40,21 +45,40 @@ func main() {
 		log.Fatalf("Failed to create model: %v", err)
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
+	}
+	localTools, err := tools.New(cwd)
+	if err != nil {
+		log.Fatalf("Failed to create tools: %v", err)
+	}
+
 	assistant, err := llmagent.New(llmagent.Config{
 		Name:        "assistant",
 		Model:       model,
-		Description: "A simple general-purpose conversational assistant.",
-		Instruction: "You are a friendly and accurate general-purpose assistant. Respond concisely in English by default, unless the user requests another language. Clearly state when you are uncertain.",
+		Description: "A general-purpose assistant that can read, edit, and write files and run Bash commands.",
+		Instruction: fmt.Sprintf(`You are a friendly and accurate general-purpose assistant. Respond concisely in English by default, unless the user requests another language. Clearly state when you are uncertain.
+
+Working directory: %s
+Relative file paths and Bash commands use this directory. Absolute paths are also supported.
+Use read to inspect text files before editing.
+Use edit for targeted changes and write for new files or complete rewrites.
+Use bash to list and search files and to run programs or tests. Each call starts a fresh shell.
+Check tool errors and command exit codes, and use the results to decide what to do next.
+Report changes and verification accurately. Do not claim an operation succeeded unless its tool result confirms it.`, cwd),
+		Tools:                localTools,
+		OnToolErrorCallbacks: []llmagent.OnToolErrorCallback{tools.RecoverError},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create agent: %v", err)
 	}
 
-	log.Printf("Model: %s. Type a question and press Enter. Press Ctrl+C to exit.", modelName)
-	if err := console.NewLauncher().Run(ctx, &launcher.Config{
+	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelName)
+	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(assistant),
 		SessionService: session.InMemoryService(),
-	}); err != nil {
+	}, os.Args[1:]); err != nil {
 		log.Fatalf("Failed to run agent: %v", err)
 	}
 }
