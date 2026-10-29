@@ -6,7 +6,6 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/openai/openai-go/v3 v3.71.1
 	google.golang.org/adk/v2 v2.6.0
-	google.golang.org/genai v1.74.0
 )
 
 require (
@@ -68,6 +67,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/api v0.300.0 // indirect
+	google.golang.org/genai v1.74.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/grpc v1.84.0 // indirect

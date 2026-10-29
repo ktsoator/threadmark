@@ -2,10 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig((env) => ({
-  // Forge changes dependency resolution. Keep its cache separate from a
-  // standalone browser preview so concurrent servers cannot overwrite it.
-  cacheDir: `node_modules/.vite/${'forgeConfigSelf' in env ? 'electron' : 'browser'}`,
+export default defineConfig({
   plugins: [tailwindcss(), react()],
   server: {
     proxy: {
@@ -21,4 +18,4 @@ export default defineConfig((env) => ({
       },
     },
   },
-}));
+});
