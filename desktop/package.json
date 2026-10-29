@@ -1,9 +1,9 @@
 {
   "name": "desktop",
-  "productName": "desktop",
+  "productName": "Threadmark",
   "version": "1.0.0",
   "private": true,
-  "description": "My Electron application description",
+  "description": "Desktop client for Threadmark, an AI-powered discussion workspace.",
   "keywords": [],
   "license": "MIT",
   "author": {
@@ -26,10 +26,10 @@
     "@electron-forge/maker-rpm": "^8.0.1",
     "@electron-forge/maker-squirrel": "^8.0.1",
     "@electron-forge/maker-zip": "^8.0.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^8.0.1",
     "@electron-forge/plugin-fuses": "^8.0.1",
     "@electron-forge/plugin-vite": "^8.0.1",
     "@electron/fuses": "^2.1.3",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -37,12 +37,17 @@
     "electron": "45.1.0",
     "oxfmt": "^0.75.0",
     "oxlint": "^1.90.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.3.5"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.3.1",
+    "clsx": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
+    "lucide-react": "^1.63.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0"
   }
 }
