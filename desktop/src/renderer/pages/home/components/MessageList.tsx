@@ -1,10 +1,9 @@
-import { ArrowDown, Check, LoaderCircle, Wrench } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import CopyButton from '../../../components/ui/CopyButton';
+import { ArrowDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import IconButton from '../../../components/ui/IconButton';
 import type { ChatMessage } from '../lib/conversation';
-
-const Markdown = lazy(() => import('../../../components/markdown/Markdown'));
+import AssistantMessage from './AssistantMessage';
+import WorkProcess from './WorkProcess';
 
 export default function MessageList({
   messages,
@@ -89,77 +88,15 @@ export default function MessageList({
                         .join('')}
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-3">
-                        {message.blocks.map((block, index) =>
-                          block.type === 'text' ? (
-                            <Suspense
-                              key={index}
-                              fallback={
-                                <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
-                                  {block.text}
-                                </div>
-                              }
-                            >
-                              <Markdown
-                                text={block.text}
-                                streaming={block.streaming}
-                              />
-                            </Suspense>
-                          ) : (
-                            <div
-                              key={block.id}
-                              className="flex items-center gap-2 py-1 text-caption text-muted-foreground"
-                            >
-                              {block.status === 'running' ? (
-                                <LoaderCircle
-                                  size={13}
-                                  className="animate-spin"
-                                />
-                              ) : block.status === 'done' ? (
-                                <Check size={13} />
-                              ) : (
-                                <Wrench size={13} />
-                              )}
-                              <span>
-                                {block.status === 'running'
-                                  ? 'Running'
-                                  : block.status === 'done'
-                                    ? 'Used'
-                                    : block.status === 'error'
-                                      ? 'Failed'
-                                      : 'Stopped'}{' '}
-                                {block.name}
-                              </span>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                      {!(busy && message === last) && (
-                        <div className="mt-2 -ml-1.5">
-                          <CopyButton
-                            label="Copy response"
-                            text={message.blocks
-                              .map((block) =>
-                                block.type === 'text' ? block.text : '',
-                              )
-                              .filter(Boolean)
-                              .join('\n\n')}
-                          />
-                        </div>
-                      )}
-                    </>
+                    <AssistantMessage
+                      message={message}
+                      active={busy && message === last}
+                    />
                   )}
                 </article>
               ))}
-              {busy && (
-                <div
-                  className="flex items-center gap-2 text-caption text-muted-foreground"
-                  role="status"
-                >
-                  <span className="size-1.5 animate-pulse rounded-full bg-accent" />
-                  {last?.role === 'assistant' ? 'Responding…' : 'Thinking…'}
-                </div>
+              {busy && last?.role !== 'assistant' && (
+                <WorkProcess blocks={[]} active />
               )}
             </div>
           )}
