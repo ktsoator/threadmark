@@ -121,7 +121,6 @@ export default function useConversation() {
     setBusy(true);
     setError('');
     let id = activeId;
-    let completed = false;
     try {
       if (!id) {
         const session = await agent.createSession(
@@ -153,7 +152,6 @@ export default function useConversation() {
         },
         controller.signal,
       );
-      completed = true;
       if (current !== version.current) return;
       // Reload the canonical events so history and the streamed answer stay in sync.
       const session = await agent.getSession(id);
@@ -163,7 +161,7 @@ export default function useConversation() {
         setError(errorMessage(error));
     } finally {
       if (current === version.current) {
-        setMessages((items) => finishMessages(items, !completed));
+        setMessages(finishMessages);
         busyRef.current = false;
         run.current = null;
         setBusy(false);
