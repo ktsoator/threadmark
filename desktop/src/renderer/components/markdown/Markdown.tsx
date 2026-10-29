@@ -1,4 +1,5 @@
 import { memo, useMemo } from 'react';
+import { cn } from '../../lib/cn';
 import { parseMarkdown } from './parse';
 import TokenContent from './TokenContent';
 import './markdown.css';
@@ -24,14 +25,21 @@ const MarkdownBlock = memo(
 export default memo(function Markdown({
   text,
   streaming = false,
+  className,
 }: {
   text: string;
   streaming?: boolean;
+  className?: string;
 }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
 
   return (
-    <div className="markdown min-w-0 text-message text-foreground [overflow-wrap:anywhere]">
+    <div
+      className={cn(
+        'markdown min-w-0 text-message text-foreground [overflow-wrap:anywhere]',
+        className,
+      )}
+    >
       {blocks.map((block, index) => (
         <MarkdownBlock
           key={index}
