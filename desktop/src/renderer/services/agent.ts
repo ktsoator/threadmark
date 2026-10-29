@@ -9,6 +9,10 @@ export const getSession = (id: string) =>
   (window.agent ?? browserClient).getSession(id);
 export const createSession = (title: string) =>
   (window.agent ?? browserClient).createSession(title);
+export const renameSession = (id: string, title: string) =>
+  (window.agent ?? browserClient).renameSession(id, title);
+export const deleteSession = (id: string) =>
+  (window.agent ?? browserClient).deleteSession(id);
 
 export async function runAgent(
   request: RunRequest,

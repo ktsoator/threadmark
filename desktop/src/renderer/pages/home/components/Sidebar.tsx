@@ -1,9 +1,13 @@
 import { PanelLeftClose, Search, SquarePen, RefreshCw } from 'lucide-react';
+import { useRef, useState } from 'react';
 import type { AgentSession } from '../../../../shared/agent/types';
-import { sessionTitle } from '../lib/conversation';
 import Button from '../../../components/ui/Button';
 import IconButton from '../../../components/ui/IconButton';
 import { cn } from '../../../lib/cn';
+import ConversationActionDialog, {
+  type ConversationAction,
+} from './ConversationActionDialog';
+import ConversationItem from './ConversationItem';
 
 type SidebarProps = {
   open: boolean;
@@ -13,6 +17,8 @@ type SidebarProps = {
   sessions: AgentSession[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  onRename: (id: string, title: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   historyError: string;
   onRetry: () => void;
 };
@@ -25,9 +31,15 @@ export default function Sidebar({
   sessions,
   activeId,
   onSelect,
+  onRename,
+  onDelete,
   historyError,
   onRetry,
 }: SidebarProps) {
+  const [action, setAction] = useState<ConversationAction | null>(null);
+  const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const newChatRef = useRef<HTMLButtonElement>(null);
+
   return (
     <aside
       className={cn(
@@ -53,6 +65,7 @@ export default function Sidebar({
 
         <nav className="grid gap-0.75 px-2.5" aria-label="Main navigation">
           <Button
+            ref={newChatRef}
             className={cn(
               'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
               !activeId && 'bg-hover',
@@ -91,22 +104,33 @@ export default function Sidebar({
           aria-label="Conversations"
         >
           {sessions.map((session) => (
-            <li key={session.id}>
-              <Button
-                className={cn(
-                  'h-navigation w-full justify-start rounded-navigation px-2.5 text-ui text-secondary-foreground',
-                  activeId === session.id && 'bg-hover text-foreground',
-                )}
-                title={sessionTitle(session)}
-                aria-current={activeId === session.id ? 'page' : undefined}
-                onClick={() => onSelect(session.id)}
-              >
-                <span className="truncate">{sessionTitle(session)}</span>
-              </Button>
-            </li>
+            <ConversationItem
+              key={session.id}
+              session={session}
+              active={activeId === session.id}
+              onSelect={onSelect}
+              onAction={(next, trigger) => {
+                actionTriggerRef.current = trigger;
+                setAction(next);
+              }}
+            />
           ))}
         </ul>
       </div>
+      {action && (
+        <ConversationActionDialog
+          key={`${action.type}-${action.session.id}`}
+          action={action}
+          onClose={() => setAction(null)}
+          onRename={onRename}
+          onDelete={onDelete}
+          onReturnFocus={() => {
+            const trigger = actionTriggerRef.current;
+            if (trigger?.isConnected) trigger.focus();
+            else newChatRef.current?.focus();
+          }}
+        />
+      )}
     </aside>
   );
 }

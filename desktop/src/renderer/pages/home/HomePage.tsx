@@ -92,6 +92,8 @@ export default function HomePage() {
         sessions={chat.sessions}
         activeId={chat.activeId}
         onSelect={selectSession}
+        onRename={chat.renameSession}
+        onDelete={chat.deleteSession}
         historyError={chat.historyError}
         onRetry={() => {
           void chat.refreshSessions();

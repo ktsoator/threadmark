@@ -26,7 +26,7 @@ export type AgentSession = {
   lastUpdateTime: number;
   events: AgentEvent[];
   state: {
-    __session_metadata__?: { displayName?: string };
+    __session_metadata__?: { displayName?: string; [key: string]: unknown };
     [key: string]: unknown;
   };
 };
@@ -37,6 +37,8 @@ export type AgentBridge = {
   listSessions: () => Promise<AgentSession[]>;
   getSession: (id: string) => Promise<AgentSession>;
   createSession: (title: string) => Promise<AgentSession>;
+  renameSession: (id: string, title: string) => Promise<AgentSession>;
+  deleteSession: (id: string) => Promise<void>;
   run: (requestId: string, request: RunRequest) => Promise<{ error?: string }>;
   cancelRun: (requestId: string) => void;
   onEvent: (

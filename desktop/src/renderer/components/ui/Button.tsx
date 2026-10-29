@@ -6,6 +6,7 @@ const variants = {
     'bg-transparent text-muted-foreground enabled:hover:bg-hover enabled:hover:text-foreground',
   primary:
     'bg-accent text-white enabled:hover:bg-accent-hover disabled:bg-accent-soft disabled:text-accent-muted',
+  danger: 'bg-error text-white enabled:hover:bg-error/90 disabled:opacity-50',
 };
 
 const sizes = {
