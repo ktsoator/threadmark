@@ -10,6 +10,7 @@ const merge = extendTailwindMerge({
         'caption',
         'ui',
         'body',
+        'message',
         'brand',
         'title',
         'title-mobile',

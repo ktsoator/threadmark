@@ -1,0 +1,229 @@
+@layer components {
+  .markdown-block + .markdown-block {
+    margin-top: 12px;
+  }
+
+  .markdown-block:has(> :is(h1, h2, h3, h4, h5, h6)) {
+    margin-top: 20px;
+  }
+
+  .markdown-block:first-child {
+    margin-top: 0;
+  }
+
+  .markdown-block:has(> :is(h1, h2, h3, h4, h5, h6)) + .markdown-block {
+    margin-top: 8px;
+  }
+
+  .markdown :is(h1, h2, h3, h4, h5, h6) {
+    font-size: var(--text-message-heading);
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .markdown h1 {
+    font-size: 1.125rem;
+  }
+
+  .markdown h2 {
+    font-size: 1rem;
+  }
+
+  .markdown strong {
+    font-weight: 600;
+  }
+
+  .markdown :is(ul, ol) {
+    padding-left: 20px;
+  }
+
+  .markdown ul {
+    list-style-type: disc;
+  }
+
+  .markdown ol {
+    list-style-type: decimal;
+  }
+
+  .markdown li {
+    padding-left: 2px;
+    margin: 3px 0;
+  }
+
+  .markdown li::marker {
+    color: var(--color-muted-foreground);
+  }
+
+  .markdown li :is(p, ul, ol) + :is(p, ul, ol) {
+    margin-top: 4px;
+  }
+
+  .markdown-task {
+    position: relative;
+    list-style-type: none;
+  }
+
+  .markdown-task input[type='checkbox'] {
+    position: absolute;
+    left: -18px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    accent-color: var(--color-muted-foreground);
+  }
+
+  .markdown blockquote {
+    border-left: 2px solid var(--color-border);
+    padding-left: 12px;
+    color: var(--color-secondary-foreground);
+  }
+
+  .markdown blockquote > * + * {
+    margin-top: 10px;
+  }
+
+  .markdown a {
+    color: var(--color-syntax-function);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  .markdown a:hover {
+    text-decoration-color: currentColor;
+  }
+
+  .markdown img {
+    max-width: 100%;
+    border-radius: var(--radius-navigation);
+  }
+
+  .markdown hr {
+    margin: 20px 0;
+    border-color: var(--color-border);
+  }
+
+  .markdown :not(pre) > code {
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: var(--color-inline-code);
+    font-size: 0.9em;
+  }
+
+  .markdown-code {
+    overflow: hidden;
+    margin: 14px 0 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-subtle);
+  }
+
+  .markdown-code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 32px;
+    padding: 2px 6px 2px 13px;
+    color: var(--color-muted-foreground);
+    font-size: var(--text-caption);
+  }
+
+  .markdown-code-header > span {
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .markdown-code pre {
+    overflow-x: auto;
+    padding: 4px 14px 14px;
+    tab-size: 2;
+    font-family: var(--font-mono);
+    font-size: var(--text-code);
+    line-height: 1.8;
+  }
+
+  .markdown-code pre code {
+    display: block;
+    min-width: max-content;
+  }
+
+  .markdown-table {
+    overflow-x: auto;
+    margin: 2px 0 16px;
+  }
+
+  .markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: var(--text-ui);
+  }
+
+  .markdown :is(th, td) {
+    padding: 8px 10px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .markdown th {
+    color: var(--color-secondary-foreground);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .markdown :is(th, td):first-child {
+    padding-left: 0;
+  }
+
+  .markdown :is(th, td):last-child {
+    padding-right: 0;
+  }
+
+  .markdown tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .markdown-block[data-streaming] {
+    animation: markdown-appear 140ms ease-out;
+  }
+
+  @keyframes markdown-appear {
+    from {
+      opacity: 0.4;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .markdown .hljs-comment,
+  .markdown .hljs-quote {
+    color: var(--color-muted-foreground);
+  }
+  .markdown .hljs-keyword,
+  .markdown .hljs-selector-tag,
+  .markdown .hljs-literal {
+    color: var(--color-syntax-keyword);
+  }
+  .markdown .hljs-string,
+  .markdown .hljs-regexp,
+  .markdown .hljs-addition {
+    color: var(--color-syntax-string);
+  }
+  .markdown .hljs-number,
+  .markdown .hljs-attr,
+  .markdown .hljs-variable {
+    color: var(--color-syntax-number);
+  }
+  .markdown .hljs-title,
+  .markdown .hljs-built_in,
+  .markdown .hljs-type {
+    color: var(--color-syntax-function);
+  }
+  .markdown .hljs-meta,
+  .markdown .hljs-deletion {
+    color: var(--color-error);
+  }
+}

@@ -6,6 +6,7 @@
   --color-background: #ffffff;
   --color-sidebar: #f9f9fa;
   --color-surface-subtle: #fafbfc;
+  --color-inline-code: #eef0f2;
   --color-hover: #eeeff1;
   --color-foreground: #25262a;
   --color-secondary-foreground: #606570;
@@ -21,6 +22,11 @@
   --color-accent-muted: #8ba9df;
   --color-selection: #dce8ff;
   --color-overlay: #23273538;
+  --color-error: #b84c4c;
+  --color-syntax-keyword: #7c4a9e;
+  --color-syntax-string: #3b755f;
+  --color-syntax-number: #a66b35;
+  --color-syntax-function: #3269a8;
 
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.5;
@@ -28,6 +34,10 @@
   --text-ui--line-height: normal;
   --text-body: 0.875rem;
   --text-body--line-height: 1.25rem;
+  --text-message: 0.875rem;
+  --text-message--line-height: 1.72;
+  --text-message-heading: 0.9375rem;
+  --text-code: 0.75rem;
   --text-brand: 1.0625rem;
   --text-brand--line-height: normal;
   --text-title: 1.625rem;
