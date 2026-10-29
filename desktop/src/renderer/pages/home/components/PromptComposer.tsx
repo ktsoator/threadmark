@@ -1,28 +1,27 @@
-import { ArrowUp, Paperclip, Plus, X } from 'lucide-react';
-import { useLayoutEffect, useRef, type RefObject } from 'react';
+import { ArrowUp, Plus, Square } from 'lucide-react';
+import { useLayoutEffect, type RefObject } from 'react';
 import IconButton from '../../../components/ui/IconButton';
 
 type PromptComposerProps = {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
-  attachments: File[];
+  busy: boolean;
+  disabled: boolean;
   onChange: (value: string) => void;
-  onAttach: (files: File[]) => void;
-  onRemoveAttachment: (file: File) => void;
   onSubmit: () => void;
+  onStop: () => void;
 };
 
 export default function PromptComposer({
   inputRef,
   value,
-  attachments,
+  busy,
+  disabled,
   onChange,
-  onAttach,
-  onRemoveAttachment,
   onSubmit,
+  onStop,
 }: PromptComposerProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const canSend = value.trim().length > 0 || attachments.length > 0;
+  const canSend = value.trim().length > 0 && !busy && !disabled;
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -41,50 +40,16 @@ export default function PromptComposer({
         if (canSend) onSubmit();
       }}
     >
-      {attachments.length > 0 && (
-        <ul
-          className="flex flex-wrap gap-1.75 px-2 pt-1 pb-2.5"
-          aria-label="Attachments"
-        >
-          {attachments.map((file) => (
-            <li
-              className="flex min-w-0 max-w-55 items-center gap-1.5 rounded-lg border border-border bg-surface-subtle py-1.5 pr-1.75 pl-2.25 text-caption text-secondary-foreground"
-              key={`${file.name}-${file.size}-${file.lastModified}`}
-            >
-              <Paperclip size={14} className="shrink-0" aria-hidden="true" />
-              <span className="truncate" title={file.name}>
-                {file.name}
-              </span>
-              <IconButton
-                size="xs"
-                label={`Remove ${file.name}`}
-                onClick={() => onRemoveAttachment(file)}
-              >
-                <X size={13} />
-              </IconButton>
-            </li>
-          ))}
-        </ul>
-      )}
       <div className="flex items-end gap-1.5">
         <IconButton
           size="md"
-          className="text-secondary-foreground"
+          className="text-subtle-foreground"
           label="Attach files"
-          onClick={() => fileInputRef.current?.click()}
+          title="File attachments are not available yet"
+          disabled
         >
           <Plus size={19} strokeWidth={1.7} />
         </IconButton>
-        <input
-          ref={fileInputRef}
-          type="file"
-          hidden
-          multiple
-          onChange={(event) => {
-            onAttach(Array.from(event.target.files ?? []));
-            event.target.value = '';
-          }}
-        />
         <label className="sr-only" htmlFor="message-input">
           Message Threadmark
         </label>
@@ -108,16 +73,27 @@ export default function PromptComposer({
             }
           }}
         />
-        <IconButton
-          size="md"
-          variant="primary"
-          type="submit"
-          disabled={!canSend}
-          label="Send message"
-          title={canSend ? 'Send message' : 'Write a message to get started'}
-        >
-          <ArrowUp size={17} strokeWidth={2} />
-        </IconButton>
+        {busy ? (
+          <IconButton
+            size="md"
+            variant="primary"
+            label="Stop generating"
+            onClick={onStop}
+          >
+            <Square size={12} fill="currentColor" />
+          </IconButton>
+        ) : (
+          <IconButton
+            size="md"
+            variant="primary"
+            type="submit"
+            disabled={!canSend}
+            label="Send message"
+            title={canSend ? 'Send message' : 'Write a message to get started'}
+          >
+            <ArrowUp size={17} strokeWidth={2} />
+          </IconButton>
+        )}
       </div>
     </form>
   );

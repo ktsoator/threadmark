@@ -2,9 +2,11 @@ import { PanelLeftOpen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import IconButton from '../../components/ui/IconButton';
 import { cn } from '../../lib/cn';
+import MessageList from './components/MessageList';
 import PromptComposer from './components/PromptComposer';
 import SearchDialog from './components/SearchDialog';
 import Sidebar from './components/Sidebar';
+import useConversation from './hooks/useConversation';
 
 function getDesktopMediaQuery() {
   const breakpoint = getComputedStyle(document.documentElement)
@@ -18,45 +20,60 @@ export default function HomePage() {
     () => getDesktopMediaQuery().matches,
   );
   const [searchOpen, setSearchOpen] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [notice, setNotice] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const chat = useConversation();
+  const hasConversation =
+    !!chat.activeId || chat.messages.length > 0 || chat.loading;
 
   useEffect(() => {
     const breakpoint = getDesktopMediaQuery();
-    const handleChange = (event: MediaQueryListEvent) => {
+    const handleChange = (event: MediaQueryListEvent) =>
       setSidebarOpen(event.matches);
-    };
     breakpoint.addEventListener('change', handleChange);
     return () => breakpoint.removeEventListener('change', handleChange);
   }, []);
 
-  const focusComposer = () => inputRef.current?.focus();
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [hasConversation]);
 
-  const startNewChat = () => {
-    setDraft('');
-    setAttachments([]);
-    setNotice('');
-    if (!getDesktopMediaQuery().matches) {
-      setSidebarOpen(false);
-    }
-    focusComposer();
-  };
+  function closeMobileSidebar() {
+    if (!getDesktopMediaQuery().matches) setSidebarOpen(false);
+  }
 
-  const addAttachments = (files: File[]) => {
-    setAttachments((current) => {
-      const unique = new Map(
-        [...current, ...files].map((file) => [
-          `${file.name}-${file.size}-${file.lastModified}`,
-          file,
-        ]),
-      );
-      return [...unique.values()];
-    });
-    setNotice('');
-    focusComposer();
-  };
+  function startNewChat() {
+    chat.newChat();
+    closeMobileSidebar();
+    inputRef.current?.focus();
+  }
+
+  function selectSession(id: string) {
+    void chat.selectSession(id);
+    closeMobileSidebar();
+  }
+
+  const composer = (
+    <PromptComposer
+      inputRef={inputRef}
+      value={chat.draft}
+      onChange={chat.setDraft}
+      onSubmit={() => {
+        void chat.send();
+        inputRef.current?.focus();
+      }}
+      onStop={chat.stop}
+      busy={chat.busy}
+      disabled={chat.loading}
+    />
+  );
+  const notice = (
+    <div
+      className="min-h-6 px-2 pt-1.5 text-caption text-error [overflow-wrap:anywhere]"
+      role="alert"
+    >
+      {chat.error}
+    </div>
+  );
 
   return (
     <div
@@ -72,8 +89,14 @@ export default function HomePage() {
         onClose={() => setSidebarOpen(false)}
         onNewChat={startNewChat}
         onSearch={() => setSearchOpen(true)}
+        sessions={chat.sessions}
+        activeId={chat.activeId}
+        onSelect={selectSession}
+        historyError={chat.historyError}
+        onRetry={() => {
+          void chat.refreshSessions();
+        }}
       />
-
       {sidebarOpen && (
         <button
           className="fixed inset-0 z-10 border-0 bg-overlay p-0 desktop:hidden"
@@ -84,62 +107,66 @@ export default function HomePage() {
       )}
 
       <main
-        className="relative flex min-w-0 flex-col overflow-auto"
+        className="relative flex min-h-0 min-w-0 flex-col overflow-hidden"
         id="main-content"
       >
         {!sidebarOpen && (
-          <IconButton
-            className="absolute top-4 left-4"
-            label="Open sidebar"
-            onClick={() => setSidebarOpen(true)}
+          <div
+            className={
+              hasConversation
+                ? 'flex h-12 shrink-0 items-center px-4'
+                : 'absolute top-4 left-4 z-10'
+            }
           >
-            <PanelLeftOpen size={16} />
-          </IconButton>
+            <IconButton
+              className="bg-background"
+              label="Open sidebar"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <PanelLeftOpen size={16} />
+            </IconButton>
+          </div>
         )}
 
-        <div className="flex flex-1 items-center justify-center px-4 pt-9 pb-22.5 small:px-5.5 desktop:px-7 desktop:pt-10 desktop:pb-27 wide:px-10">
-          <section
-            className="w-full max-w-composer"
-            aria-labelledby="welcome-heading"
-          >
-            <h1
-              className="mb-title-gap text-center font-display text-title-small font-medium tracking-[-0.6px] small:text-title-mobile desktop:text-title"
-              id="welcome-heading"
-            >
-              What’s on your mind?
-            </h1>
-
-            <PromptComposer
-              inputRef={inputRef}
-              value={draft}
-              attachments={attachments}
-              onChange={(value) => {
-                setDraft(value);
-                setNotice('');
-              }}
-              onAttach={addAttachments}
-              onRemoveAttachment={(file) => {
-                setAttachments((current) =>
-                  current.filter((attachment) => attachment !== file),
-                );
-              }}
-              onSubmit={() => {
-                setNotice('Connect an agent to send your message.');
-                focusComposer();
-              }}
+        {hasConversation ? (
+          <>
+            <MessageList
+              key={chat.activeId || 'new'}
+              messages={chat.messages}
+              busy={chat.busy}
+              loading={chat.loading}
             />
-
-            <div
-              className="min-h-6 px-4 pt-1.5 text-caption text-muted-foreground"
-              role="status"
-            >
-              {notice}
+            <div className="shrink-0 bg-background px-4 pt-2 pb-3 desktop:px-8">
+              <div className="mx-auto max-w-reading">
+                {composer}
+                {notice}
+              </div>
             </div>
-          </section>
-        </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center overflow-y-auto px-4 pt-9 pb-22.5 small:px-5.5 desktop:px-7 desktop:pt-10 desktop:pb-27 wide:px-10">
+            <section
+              className="w-full max-w-composer"
+              aria-labelledby="welcome-heading"
+            >
+              <h1
+                className="mb-title-gap text-center font-display text-title-small font-medium tracking-[-0.6px] small:text-title-mobile desktop:text-title"
+                id="welcome-heading"
+              >
+                What’s on your mind?
+              </h1>
+              {composer}
+              {notice}
+            </section>
+          </div>
+        )}
       </main>
-
-      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <SearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        sessions={chat.sessions}
+        onSelect={selectSession}
+      />
     </div>
   );
 }

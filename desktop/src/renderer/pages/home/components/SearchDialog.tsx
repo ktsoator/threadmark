@@ -1,15 +1,28 @@
 import { MessageSquare, Search } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import type { AgentSession } from '../../../../shared/agent/types';
+import Button from '../../../components/ui/Button';
 import Dialog from '../../../components/ui/Dialog';
+import { sessionTitle } from '../lib/conversation';
 
 export default function SearchDialog({
   open,
   onClose,
+  sessions,
+  onSelect,
 }: {
   open: boolean;
   onClose: () => void;
+  sessions: AgentSession[];
+  onSelect: (id: string) => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
+  const filtered = sessions.filter((session) =>
+    sessionTitle(session)
+      .toLocaleLowerCase()
+      .includes(query.trim().toLocaleLowerCase()),
+  );
 
   return (
     <Dialog
@@ -22,6 +35,7 @@ export default function SearchDialog({
       closeLabel="Close search"
       onOpenAutoFocus={(event) => {
         event.preventDefault();
+        setQuery('');
         searchRef.current?.focus();
       }}
     >
@@ -33,22 +47,53 @@ export default function SearchDialog({
           type="search"
           aria-label="Search conversations"
           placeholder="Search your conversations…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      <div className="px-2.5 pt-7 pb-5 text-center text-subtle-foreground">
-        <MessageSquare
-          size={23}
-          strokeWidth={1.4}
-          className="mx-auto"
-          aria-hidden="true"
-        />
-        <p className="mt-3.25 mb-1.75 text-ui text-secondary-foreground">
-          No conversations yet
-        </p>
-        <span className="text-caption">
-          Your first conversation will appear here.
-        </span>
-      </div>
+      {filtered.length > 0 ? (
+        <ul
+          className="mt-3 max-h-72 space-y-0.5 overflow-y-auto"
+          aria-label="Search results"
+        >
+          {filtered.map((session) => (
+            <li key={session.id}>
+              <Button
+                className="w-full justify-start text-foreground"
+                onClick={() => {
+                  onSelect(session.id);
+                  onClose();
+                }}
+              >
+                <MessageSquare
+                  size={14}
+                  className="shrink-0 text-muted-foreground"
+                />
+                <span className="truncate">{sessionTitle(session)}</span>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-2.5 pt-7 pb-5 text-center text-subtle-foreground">
+          <MessageSquare
+            size={23}
+            strokeWidth={1.4}
+            className="mx-auto"
+            aria-hidden="true"
+          />
+          <p className="mt-3.25 mb-1.75 text-ui text-secondary-foreground">
+            {sessions.length
+              ? 'No matching conversations'
+              : 'No conversations yet'}
+          </p>
+          <span className="text-caption">
+            {sessions.length
+              ? 'Try a different search.'
+              : 'Your first conversation will appear here.'}
+          </span>
+        </div>
+      )}
     </Dialog>
   );
 }

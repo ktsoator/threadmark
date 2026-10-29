@@ -21,6 +21,7 @@ const merge = extendTailwindMerge({
         'sidebar-compact',
         'sidebar-header',
         'composer',
+        'reading',
         'dialog',
         'control',
         'control-sm',

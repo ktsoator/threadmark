@@ -1,4 +1,6 @@
-import { PanelLeftClose, Search, SquarePen } from 'lucide-react';
+import { PanelLeftClose, Search, SquarePen, RefreshCw } from 'lucide-react';
+import type { AgentSession } from '../../../../shared/agent/types';
+import { sessionTitle } from '../lib/conversation';
 import Button from '../../../components/ui/Button';
 import IconButton from '../../../components/ui/IconButton';
 import { cn } from '../../../lib/cn';
@@ -8,6 +10,11 @@ type SidebarProps = {
   onClose: () => void;
   onNewChat: () => void;
   onSearch: () => void;
+  sessions: AgentSession[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  historyError: string;
+  onRetry: () => void;
 };
 
 export default function Sidebar({
@@ -15,6 +22,11 @@ export default function Sidebar({
   onClose,
   onNewChat,
   onSearch,
+  sessions,
+  activeId,
+  onSelect,
+  historyError,
+  onRetry,
 }: SidebarProps) {
   return (
     <aside
@@ -41,7 +53,10 @@ export default function Sidebar({
 
         <nav className="grid gap-0.75 px-2.5" aria-label="Main navigation">
           <Button
-            className="h-navigation justify-start gap-2.5 rounded-navigation bg-hover px-2.5 text-foreground"
+            className={cn(
+              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
+              !activeId && 'bg-hover',
+            )}
             onClick={onNewChat}
           >
             <SquarePen size={16} />
@@ -56,10 +71,41 @@ export default function Sidebar({
           </Button>
         </nav>
 
+        {historyError && (
+          <div
+            className="mx-3 mt-4 flex items-start gap-1 text-caption text-muted-foreground"
+            role="status"
+          >
+            <span className="flex-1 pt-1">Could not load conversations.</span>
+            <IconButton
+              label="Reload conversations"
+              title={historyError}
+              onClick={onRetry}
+            >
+              <RefreshCw size={14} />
+            </IconButton>
+          </div>
+        )}
         <ul
-          className="min-h-0 flex-1 overflow-y-auto px-2.5 py-4"
+          className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4"
           aria-label="Conversations"
-        />
+        >
+          {sessions.map((session) => (
+            <li key={session.id}>
+              <Button
+                className={cn(
+                  'h-navigation w-full justify-start rounded-navigation px-2.5 text-ui text-secondary-foreground',
+                  activeId === session.id && 'bg-hover text-foreground',
+                )}
+                title={sessionTitle(session)}
+                aria-current={activeId === session.id ? 'page' : undefined}
+                onClick={() => onSelect(session.id)}
+              >
+                <span className="truncate">{sessionTitle(session)}</span>
+              </Button>
+            </li>
+          ))}
+        </ul>
       </div>
     </aside>
   );
