@@ -26,6 +26,14 @@ export function registerAgentHandlers() {
     checkSender(event);
     return client.createSession(title);
   });
+  ipcMain.handle('agent:rename-session', (event, id: string, title: string) => {
+    checkSender(event);
+    return client.renameSession(id, title);
+  });
+  ipcMain.handle('agent:delete-session', (event, id: string) => {
+    checkSender(event);
+    return client.deleteSession(id);
+  });
   ipcMain.handle(
     'agent:run',
     async (event, requestId: string, request: RunRequest) => {

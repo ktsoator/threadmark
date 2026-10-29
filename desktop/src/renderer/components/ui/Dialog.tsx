@@ -11,10 +11,14 @@ type DialogProps = {
   description: string;
   children: ReactNode;
   closeLabel?: string;
+  closeDisabled?: boolean;
   className?: string;
   onOpenAutoFocus?: ComponentProps<
     typeof DialogPrimitive.Content
   >['onOpenAutoFocus'];
+  onCloseAutoFocus?: ComponentProps<
+    typeof DialogPrimitive.Content
+  >['onCloseAutoFocus'];
 };
 
 export default function Dialog({
@@ -24,10 +28,13 @@ export default function Dialog({
   description,
   children,
   closeLabel = 'Close dialog',
+  closeDisabled = false,
   className,
   onOpenAutoFocus,
+  onCloseAutoFocus,
 }: DialogProps) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const pointerInteractionRef = useRef(false);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -39,6 +46,7 @@ export default function Dialog({
             className,
           )}
           onOpenAutoFocus={(event) => {
+            pointerInteractionRef.current = false;
             returnFocusRef.current =
               document.activeElement instanceof HTMLElement
                 ? document.activeElement
@@ -46,8 +54,27 @@ export default function Dialog({
             onOpenAutoFocus?.(event);
           }}
           onCloseAutoFocus={(event) => {
+            // Pointer dismissal should not leave a focus ring on the opener.
+            if (pointerInteractionRef.current) {
+              event.preventDefault();
+              return;
+            }
+            onCloseAutoFocus?.(event);
+            if (event.defaultPrevented) return;
             event.preventDefault();
             returnFocusRef.current?.focus();
+          }}
+          onPointerDownCapture={() => {
+            pointerInteractionRef.current = true;
+          }}
+          onPointerDownOutside={() => {
+            pointerInteractionRef.current = true;
+          }}
+          onKeyDownCapture={() => {
+            pointerInteractionRef.current = false;
+          }}
+          onEscapeKeyDown={() => {
+            pointerInteractionRef.current = false;
           }}
         >
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -55,7 +82,7 @@ export default function Dialog({
               {title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
-              <IconButton label={closeLabel}>
+              <IconButton label={closeLabel} disabled={closeDisabled}>
                 <X size={16} />
               </IconButton>
             </DialogPrimitive.Close>

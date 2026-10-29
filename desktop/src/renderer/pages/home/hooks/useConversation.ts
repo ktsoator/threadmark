@@ -170,6 +170,48 @@ export default function useConversation() {
     }
   }
 
+  async function renameSession(id: string, title: string) {
+    try {
+      const updated = await agent.renameSession(id, title);
+      // Discard list requests started before the mutation completed.
+      listVersion.current++;
+      setSessions((items) =>
+        items
+          .map((item) => (item.id === id ? updated : item))
+          .sort((a, b) => b.lastUpdateTime - a.lastUpdateTime),
+      );
+    } catch (error) {
+      throw new Error(errorMessage(error));
+    }
+  }
+
+  async function deleteSession(id: string) {
+    const deletingActive =
+      id === activeId ||
+      (!activeId && localStorage.getItem(activeSessionKey) === id);
+    if (deletingActive) {
+      // Stop this session's stream and invalidate pending history reads first.
+      version.current++;
+      run.current?.abort();
+      run.current = null;
+      busyRef.current = false;
+      setBusy(false);
+      setLoading(false);
+      setMessages(finishMessages);
+    }
+    const current = version.current;
+    try {
+      await agent.deleteSession(id);
+      listVersion.current++;
+      setSessions((items) => items.filter((item) => item.id !== id));
+      if (deletingActive && current === version.current) newChat();
+      if (localStorage.getItem(activeSessionKey) === id)
+        localStorage.removeItem(activeSessionKey);
+    } catch (error) {
+      throw new Error(errorMessage(error));
+    }
+  }
+
   return {
     sessions,
     activeId,
@@ -182,6 +224,8 @@ export default function useConversation() {
     historyError,
     newChat,
     selectSession,
+    renameSession,
+    deleteSession,
     send,
     refreshSessions,
     stop: () => run.current?.abort(),

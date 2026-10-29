@@ -50,6 +50,31 @@ export function createAdkClient(baseURL: string) {
         })
       ).json();
     },
+    async renameSession(id: string, title: string): Promise<AgentSession> {
+      const displayName = title.trim();
+      if (!displayName) throw new Error('Enter a conversation name.');
+      const path = `${sessionsPath}/${encodeURIComponent(id)}`;
+      const session: AgentSession = await (await request(path)).json();
+      return (
+        await request(path, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            stateDelta: {
+              // ADK replaces each state key, so preserve the other metadata fields.
+              __session_metadata__: {
+                ...session.state.__session_metadata__,
+                displayName,
+              },
+            },
+          }),
+        })
+      ).json();
+    },
+    async deleteSession(id: string): Promise<void> {
+      await request(`${sessionsPath}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
     async run(
       { sessionId, text }: RunRequest,
       onEvent: (event: AgentEvent) => void,
