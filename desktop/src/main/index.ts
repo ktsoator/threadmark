@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { registerAgentHandlers } from './ipc/agent';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -28,6 +29,7 @@ const createWindow = () => {
 };
 
 app.whenReady().then(() => {
+  registerAgentHandlers();
   createWindow();
 
   // Reopen a window when the macOS Dock icon is clicked.
