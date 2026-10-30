@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-//go:embed data/models.json
+//go:embed models.json
 var builtinJSON []byte
 
 var loadBuiltin = sync.OnceValues(func() (Catalog, error) {

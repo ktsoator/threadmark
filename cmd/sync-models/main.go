@@ -13,7 +13,7 @@ import (
 
 const (
 	sourceURL      = "https://models.dev/api.json"
-	outputPath     = "internal/modelcatalog/data/models.json"
+	outputPath     = "internal/modelcatalog/models.json"
 	maxSourceBytes = 32 << 20
 )
 
