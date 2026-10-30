@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"maps"
 	"os"
-	"slices"
 
 	"github.com/ktsoator/threadmark/internal/modelcatalog"
 )
@@ -27,13 +25,9 @@ func run(path, providerID string) error {
 	if err != nil {
 		return err
 	}
-	provider, ok := catalog[providerID]
+	models, ok := catalog.Models(providerID)
 	if !ok {
 		return fmt.Errorf("provider %q not found in catalog", providerID)
-	}
-	models := make([]modelcatalog.Model, 0, len(provider.Models))
-	for _, id := range slices.Sorted(maps.Keys(provider.Models)) {
-		models = append(models, provider.Models[id])
 	}
 	// Print the decoded structs for inspection, not a lossless source snapshot.
 	encoder := json.NewEncoder(os.Stdout)
