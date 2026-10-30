@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/ktsoator/threadmark/internal/models/openaimodel"
 	"github.com/ktsoator/threadmark/internal/skills"
 	"github.com/ktsoator/threadmark/internal/tools"
 	"github.com/openai/openai-go/v3/option"
@@ -18,7 +19,6 @@ import (
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/cmd/launcher"
 	"google.golang.org/adk/v2/cmd/launcher/full"
-	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/session/database"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
