@@ -29,7 +29,7 @@ function ToolBlock({
   return (
     <div
       className={cn(
-        'flex min-w-0 items-start gap-2 text-body text-muted-foreground',
+        'flex min-w-0 cursor-pointer items-start gap-2 text-body text-muted-foreground transition-colors duration-150 hover:text-foreground',
         nested ? 'py-0.5' : 'py-1',
         failed && 'text-error',
       )}
@@ -78,7 +78,7 @@ export default function WorkBlock({
           aria-label={label}
           aria-expanded={open}
           aria-controls={contentId}
-          className="flex w-fit items-center gap-2 rounded-control py-0.5 text-body text-muted-foreground hover:text-secondary-foreground"
+          className="flex w-fit items-center gap-2 rounded-control py-0.5 text-body text-muted-foreground transition-colors duration-150 hover:text-foreground"
           onClick={() => {
             onToggle();
             setExpanded(!open);
