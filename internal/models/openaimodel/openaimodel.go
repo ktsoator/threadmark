@@ -15,7 +15,6 @@
 package openaimodel
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -75,7 +74,11 @@ const FinishMessageKey = "openai_finish_message"
 
 // NewModel constructs a model talking to the API named by cfg.
 // The context is unused but kept for signature parity with other model constructors (e.g., gemini.NewModel).
-func NewModel(_ context.Context, modelName string, cfg *ClientConfig) (model.LLM, error) {
+// func NewModel(_ context.Context, modelName string, cfg *ClientConfig) (model.LLM, error) {
+// 	return newModel(modelName, cfg, "")
+// }
+
+func newModel(modelName string, cfg *ClientConfig, reasoningField string) (model.LLM, error) {
 	if modelName == "" {
 		return nil, ErrModelNameRequired
 	}
@@ -98,7 +101,7 @@ func NewModel(_ context.Context, modelName string, cfg *ClientConfig) (model.LLM
 	case "", APIResponses:
 		return responses.New(&client, modelName), nil
 	case APIChatCompletions:
-		return completions.New(&client, modelName), nil
+		return completions.New(&client, modelName, reasoningField), nil
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnsupportedAPI, cfg.API)
 	}

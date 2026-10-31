@@ -61,12 +61,24 @@
 // is not configurable, so tool call arguments are best effort rather than
 // guaranteed to match the declared parameter schema.
 //
+// BuildThinkingOptions validates user selections against supplied catalog
+// ReasoningOptions and returns ClientConfig.Options for the official DeepSeek,
+// Kimi, MiMo, MiniMax, and Qwen Chat Completions endpoints. Nonempty selections
+// require APIChatCompletions explicitly; other providers and APIs return an
+// error rather than guessing a mapping. Empty selections preserve endpoint
+// defaults. MiniMax must use its OpenAI-compatible /v1 endpoint, even though
+// its catalog provider defaults to an Anthropic endpoint. This helper performs
+// no catalog lookup or automatic API selection. Request parameter mapping does
+// not establish support for every response format.
+//
 // On the Responses API, model reasoning is reported to the caller as thought
-// parts; Chat Completions responses are read for text, refusals and tool calls
-// only. Reasoning is not sent back on a later turn to either API: the
-// Responses API accepts it only as an input item referencing the id of the
-// item that produced it, which ADK does not carry, and Chat Completions has no
-// field for it. Reasoning therefore informs the turn that produced it and no
+// parts. Chat Completions also reads reasoning text from an extension field
+// when NewConfiguredModel receives an enabled Interleaved declaration with a
+// nonempty Field. These thoughts are included in partial and final responses.
+// Reasoning is not sent back on a later turn to either API: the Responses API
+// accepts it only as an input item referencing the id of the item that produced
+// it, which ADK does not carry, and Chat Completions extension replay is not yet
+// implemented. Reasoning therefore informs the turn that produced it and no
 // other; a caller that needs a conclusion to survive should have the model
 // state it in the answer. What this package cannot police is reasoning that
 // something upstream has already rendered as ordinary text: a peer agent's

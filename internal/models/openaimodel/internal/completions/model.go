@@ -36,8 +36,9 @@ import (
 // third-party providers implement. It is what openaimodel.NewModel returns for
 // a ClientConfig whose API is openaimodel.APIChatCompletions.
 type Model struct {
-	client *openai.Client
-	name   string
+	client         *openai.Client
+	name           string
+	reasoningField string
 }
 
 // Name returns the model name a request is sent with when it does not name
@@ -78,7 +79,7 @@ func (m *Model) generate(ctx context.Context, params openai.ChatCompletionNewPar
 			yield(nil, fmt.Errorf("openai: call failed: %w", err))
 			return
 		}
-		genaiResp, err := convertCompletion(resp)
+		genaiResp, err := m.convertCompletion(resp)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -107,7 +108,7 @@ func (m *Model) generateStream(ctx context.Context, params openai.ChatCompletion
 		defer func() { _ = stream.Close() }()
 
 		aggregator := llminternal.NewStreamingResponseAggregator()
-		translator := newStreamTranslator()
+		translator := newStreamTranslator(m.reasoningField)
 
 		for stream.Next() {
 			genaiResp, err := translator.process(stream.Current())
@@ -134,7 +135,7 @@ func (m *Model) generateStream(ctx context.Context, params openai.ChatCompletion
 
 		final := aggregator.Close()
 		completion := translator.completion()
-		genaiResp, err := convertCompletion(completion)
+		genaiResp, err := m.convertCompletion(completion)
 		switch {
 		case err == nil && !shared.CarriesContent(final):
 			// The deltas contributed nothing that survived aggregation, which is
@@ -146,7 +147,12 @@ func (m *Model) generateStream(ctx context.Context, params openai.ChatCompletion
 			// aggregate whenever it retains everything already streamed, and
 			// otherwise the streamed text stands with the snapshot's calls added.
 			content := genaiResp.Candidates[0].Content
-			if shared.CompletedContentSupersedes(final.Content, content) {
+			// The SDK snapshot omits extension fields. Keep streamed thoughts
+			// in the final response so they also survive session persistence.
+			hasThoughts := slices.ContainsFunc(final.Content.Parts, func(part *genai.Part) bool {
+				return part != nil && part.Thought
+			})
+			if !hasThoughts && shared.CompletedContentSupersedes(final.Content, content) {
 				final.Content = content
 			} else {
 				kept, _, _ := shared.PartsWithoutCalls(final.Content)
@@ -231,6 +237,7 @@ func attachMetadata(resp *model.LLMResponse, completion *openai.ChatCompletion) 
 }
 
 // New returns a Model talking to the Chat Completions API as modelName.
-func New(client *openai.Client, modelName string) *Model {
-	return &Model{client: client, name: modelName}
+// reasoningField names an optional response extension containing reasoning text.
+func New(client *openai.Client, modelName, reasoningField string) *Model {
+	return &Model{client: client, name: modelName, reasoningField: reasoningField}
 }

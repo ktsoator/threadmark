@@ -15,7 +15,6 @@ import (
 	"github.com/ktsoator/threadmark/internal/models/openaimodel"
 	"github.com/ktsoator/threadmark/internal/skills"
 	"github.com/ktsoator/threadmark/internal/tools"
-	"github.com/openai/openai-go/v3/option"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/cmd/launcher"
@@ -29,31 +28,33 @@ func main() {
 	log.SetFlags(0)
 	ctx := context.Background()
 
-	apiKey := strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY"))
+	apiKey := strings.TrimSpace(os.Getenv("MOONSHOT_API_KEY"))
 	if apiKey == "" || apiKey == "your-api-key-here" {
-		log.Fatal("Set DEEPSEEK_API_KEY in .env and run 'source .env' to load the configuration.")
+		log.Fatal("Set MOONSHOT_API_KEY in .env and run 'source .env' to load the configuration.")
 	}
-	modelName := strings.TrimSpace(os.Getenv("DEEPSEEK_MODEL"))
+	modelName := strings.TrimSpace(os.Getenv("KIMI_MODEL"))
 	if modelName == "" {
-		modelName = "deepseek-flash"
+		modelName = "kimi-k3"
 	}
-	modelInfo, err := modelcatalog.Lookup("deepseek", modelName)
+	const providerID = "moonshotai-cn"
+	modelInfo, err := modelcatalog.Lookup(providerID, modelName)
 	if err != nil {
 		log.Fatalf("Failed to find model: %v", err)
 	}
-	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
-		Metadata: modelInfo,
-	}, &openaimodel.ClientConfig{
+	thinking := openaimodel.ThinkingOptions{Effort: "high"}
+	clientConfig := &openaimodel.ClientConfig{
 		API:        openaimodel.APIChatCompletions,
 		APIKey:     apiKey,
-		BaseURL:    "https://api.deepseek.com",
+		BaseURL:    "https://api.moonshot.cn/v1",
 		HTTPClient: &http.Client{Timeout: 90 * time.Second},
-		Options: []option.RequestOption{
-			option.WithJSONSet("thinking", map[string]string{
-				"type": "disabled",
-			}),
-		},
-	})
+	}
+	clientConfig.Options, err = openaimodel.BuildThinkingOptions(providerID, modelInfo, clientConfig.API, thinking)
+	if err != nil {
+		log.Fatalf("Failed to configure thinking: %v", err)
+	}
+	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
+		Metadata: modelInfo,
+	}, clientConfig)
 	if err != nil {
 		log.Fatalf("Failed to create model: %v", err)
 	}
@@ -110,7 +111,7 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		log.Printf("Skills directory: %s", dir)
 	}
 	log.Printf("Session database: %s", dbPath)
-	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelInfo.ID)
+	log.Printf("Model: %s. Reasoning effort: %s. Press Ctrl+C to exit.", modelInfo.ID, thinking.Effort)
 	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(assistant),
 		SessionService: sessionService,

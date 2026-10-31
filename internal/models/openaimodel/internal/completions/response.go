@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/respjson"
 	"google.golang.org/genai"
 
 	"github.com/ktsoator/threadmark/internal/models/openaimodel/internal/shared"
@@ -27,7 +28,7 @@ import (
 // convertCompletion converts a Chat Completions response into the generic
 // genai response. A streamed turn is finalized through here too, so the two
 // paths cannot disagree about tool calls, finish reason or usage.
-func convertCompletion(resp *openai.ChatCompletion) (*genai.GenerateContentResponse, error) {
+func (m *Model) convertCompletion(resp *openai.ChatCompletion) (*genai.GenerateContentResponse, error) {
 	if resp == nil {
 		return nil, shared.ErrEmptyResponse
 	}
@@ -35,7 +36,7 @@ func convertCompletion(resp *openai.ChatCompletion) (*genai.GenerateContentRespo
 		return nil, shared.ErrNoChoices
 	}
 	choice := resp.Choices[0]
-	parts, err := convertMessage(choice.Message)
+	parts, err := m.convertMessage(choice.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +63,15 @@ func convertCompletion(resp *openai.ChatCompletion) (*genai.GenerateContentRespo
 // convertMessage converts an assistant message into genai parts. A refusal
 // becomes text, matching what the Responses path does with a refusal content
 // block, so one model reports a refusal the same way on either endpoint.
-func convertMessage(msg openai.ChatCompletionMessage) ([]*genai.Part, error) {
+func (m *Model) convertMessage(msg openai.ChatCompletionMessage) ([]*genai.Part, error) {
 	var parts []*genai.Part
+	reasoning, err := readReasoningText(msg.JSON.ExtraFields, m.reasoningField)
+	if err != nil {
+		return nil, err
+	}
+	if reasoning != "" {
+		parts = append(parts, &genai.Part{Text: reasoning, Thought: true})
+	}
 	if msg.Content != "" {
 		parts = append(parts, &genai.Part{Text: msg.Content})
 	}
@@ -99,6 +107,23 @@ func convertMessage(msg openai.ChatCompletionMessage) ([]*genai.Part, error) {
 		})
 	}
 	return parts, nil
+}
+
+// readReasoningText reads only the explicitly configured extension field.
+// Missing and null fields carry no reasoning; other non-string values are errors.
+func readReasoningText(fields map[string]respjson.Field, name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	raw := fields[name].Raw()
+	if raw == "" || raw == "null" {
+		return "", nil
+	}
+	var text string
+	if err := json.Unmarshal([]byte(raw), &text); err != nil {
+		return "", fmt.Errorf("openai: reasoning field %q must contain a string: %w", name, err)
+	}
+	return text, nil
 }
 
 // functionCallArgs decodes a tool call's arguments, reading an empty payload as

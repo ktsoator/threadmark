@@ -19,8 +19,6 @@ import (
 
 	"github.com/openai/openai-go/v3"
 	"google.golang.org/genai"
-
-	"github.com/ktsoator/threadmark/internal/models/openaimodel/internal/shared"
 )
 
 // errToolCallChunkRejected reports a streamed tool-call delta the accumulator
@@ -37,7 +35,8 @@ var errToolCallChunkRejected = errors.New("openai: streamed tool call chunk coul
 // built from the accumulated snapshot by the same converter the blocking path
 // uses.
 type streamTranslator struct {
-	acc openai.ChatCompletionAccumulator
+	acc            openai.ChatCompletionAccumulator
+	reasoningField string
 	// id is the first non-empty chunk id of the stream.
 	id string
 	// usage is the latest usage a chunk reported, or nil if none did. It is
@@ -49,8 +48,8 @@ type streamTranslator struct {
 }
 
 // newStreamTranslator returns a translator for one streamed turn.
-func newStreamTranslator() *streamTranslator {
-	return &streamTranslator{}
+func newStreamTranslator(reasoningField string) *streamTranslator {
+	return &streamTranslator{reasoningField: reasoningField}
 }
 
 // process folds one chunk into the accumulated turn and reports the partial it
@@ -81,14 +80,31 @@ func (t *streamTranslator) process(chunk openai.ChatCompletionChunk) (*genai.Gen
 		return nil, nil
 	}
 	delta := chunk.Choices[0].Delta
-	switch {
-	case delta.Content != "":
-		return shared.SinglePartResponse(&genai.Part{Text: delta.Content}), nil
-	case delta.Refusal != "":
-		// Blocking reports a refusal as text, so streaming does the same.
-		return shared.SinglePartResponse(&genai.Part{Text: delta.Refusal}), nil
+	reasoning, err := readReasoningText(delta.JSON.ExtraFields, t.reasoningField)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	var parts []*genai.Part
+	if reasoning != "" {
+		parts = append(parts, &genai.Part{Text: reasoning, Thought: true})
+	}
+	if delta.Content != "" {
+		parts = append(parts, &genai.Part{Text: delta.Content})
+	}
+	if delta.Refusal != "" {
+		// Blocking reports a refusal as text, so streaming does the same.
+		parts = append(parts, &genai.Part{Text: delta.Refusal})
+	}
+	if len(parts) == 0 {
+		return nil, nil
+	}
+	// A delta may contain both reasoning and answer text. Leave the finish
+	// reason unset so the aggregator treats this response as a partial.
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{{
+			Content: &genai.Content{Role: string(genai.RoleModel), Parts: parts},
+		}},
+	}, nil
 }
 
 // carriesToolCall reports whether any choice in chunk carries a tool-call delta.
