@@ -28,15 +28,15 @@ func main() {
 	log.SetFlags(0)
 	ctx := context.Background()
 
-	apiKey := strings.TrimSpace(os.Getenv("MOONSHOT_API_KEY"))
+	apiKey := strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY"))
 	if apiKey == "" || apiKey == "your-api-key-here" {
-		log.Fatal("Set MOONSHOT_API_KEY in .env and run 'source .env' to load the configuration.")
+		log.Fatal("Set DEEPSEEK_API_KEY in .env and run 'source .env' to load the configuration.")
 	}
-	modelName := strings.TrimSpace(os.Getenv("KIMI_MODEL"))
+	modelName := strings.TrimSpace(os.Getenv("DEEPSEEK_MODEL"))
 	if modelName == "" {
-		modelName = "kimi-k3"
+		modelName = "deepseek-flash"
 	}
-	const providerID = "moonshotai-cn"
+	const providerID = "deepseek"
 	modelInfo, err := modelcatalog.Lookup(providerID, modelName)
 	if err != nil {
 		log.Fatalf("Failed to find model: %v", err)
@@ -45,7 +45,7 @@ func main() {
 	clientConfig := &openaimodel.ClientConfig{
 		API:        openaimodel.APIChatCompletions,
 		APIKey:     apiKey,
-		BaseURL:    "https://api.moonshot.cn/v1",
+		BaseURL:    "https://api.deepseek.com",
 		HTTPClient: &http.Client{Timeout: 90 * time.Second},
 	}
 	clientConfig.Options, err = openaimodel.BuildThinkingOptions(providerID, modelInfo, clientConfig.API, thinking)
