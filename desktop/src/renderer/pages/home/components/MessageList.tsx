@@ -1,8 +1,9 @@
-import { ArrowDown, Check, LoaderCircle, Wrench } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import CopyButton from '../../../components/ui/CopyButton';
 import IconButton from '../../../components/ui/IconButton';
-import type { ChatMessage } from '../lib/conversation';
+import { type ChatMessage, messageSections } from '../lib/conversation';
+import WorkBlock from './WorkBlock';
 
 const Markdown = lazy(() => import('../../../components/markdown/Markdown'));
 
@@ -20,6 +21,14 @@ export default function MessageList({
   const following = useRef(true);
   const [showScroll, setShowScroll] = useState(false);
   const last = messages.at(-1);
+  const lastSection = messageSections(last?.blocks ?? []).at(-1);
+  const working =
+    last?.role === 'assistant' &&
+    lastSection?.type === 'activity' &&
+    (lastSection.blocks.length > 1 ||
+      lastSection.blocks.some((block) =>
+        block.type === 'thought' ? block.streaming : block.status === 'running',
+      ));
   const userMessageCount = messages.filter(
     (message) => message.role === 'user',
   ).length;
@@ -34,7 +43,11 @@ export default function MessageList({
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       const scroll = scrollRef.current;
-      if (scroll && following.current) scroll.scrollTop = scroll.scrollHeight;
+      if (!scroll) return;
+      if (following.current) scroll.scrollTop = scroll.scrollHeight;
+      setShowScroll(
+        scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight >= 80,
+      );
     });
     if (contentRef.current) observer.observe(contentRef.current);
     if (scrollRef.current) observer.observe(scrollRef.current);
@@ -45,7 +58,7 @@ export default function MessageList({
     <div className="relative min-h-0 flex-1">
       <div
         ref={scrollRef}
-        className="h-full overflow-y-auto px-4 [scrollbar-gutter:stable] desktop:px-8"
+        className="h-full overflow-y-auto px-4 [overflow-anchor:none] [scrollbar-gutter:stable] desktop:px-8"
         onScroll={() => {
           const scroll = scrollRef.current;
           if (!scroll) return;
@@ -90,69 +103,61 @@ export default function MessageList({
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-3">
-                        {message.blocks.map((block, index) =>
-                          block.type === 'text' ? (
-                            <Suspense
-                              key={index}
-                              fallback={
-                                <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
-                                  {block.text}
-                                </div>
-                              }
-                            >
-                              <Markdown
-                                text={block.text}
-                                streaming={block.streaming}
-                              />
-                            </Suspense>
-                          ) : (
-                            <div
-                              key={block.id}
-                              className="flex items-center gap-2 py-1 text-caption text-muted-foreground"
-                            >
-                              {block.status === 'running' ? (
-                                <LoaderCircle
-                                  size={13}
-                                  className="animate-spin"
+                      <div className="space-y-4">
+                        {messageSections(message.blocks).map(
+                          (section, index, sections) =>
+                            section.type === 'text' ? (
+                              <Suspense
+                                key={section.index}
+                                fallback={
+                                  <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
+                                    {section.block.text}
+                                  </div>
+                                }
+                              >
+                                <Markdown
+                                  text={section.block.text}
+                                  streaming={section.block.streaming}
                                 />
-                              ) : block.status === 'done' ? (
-                                <Check size={13} />
-                              ) : (
-                                <Wrench size={13} />
-                              )}
-                              <span>
-                                {block.status === 'running'
-                                  ? 'Running'
-                                  : block.status === 'done'
-                                    ? 'Used'
-                                    : block.status === 'error'
-                                      ? 'Failed'
-                                      : 'Stopped'}{' '}
-                                {block.name}
-                              </span>
-                            </div>
-                          ),
+                              </Suspense>
+                            ) : (
+                              <WorkBlock
+                                key={section.index}
+                                blocks={section.blocks}
+                                onToggle={() => {
+                                  // Keep the clicked heading in place as its content expands.
+                                  following.current = false;
+                                }}
+                                active={
+                                  busy &&
+                                  message === last &&
+                                  index === sections.length - 1
+                                }
+                              />
+                            ),
                         )}
                       </div>
-                      {!(busy && message === last) && (
-                        <div className="mt-2 -ml-1.5">
-                          <CopyButton
-                            label="Copy response"
-                            text={message.blocks
-                              .map((block) =>
-                                block.type === 'text' ? block.text : '',
-                              )
-                              .filter(Boolean)
-                              .join('\n\n')}
-                          />
-                        </div>
-                      )}
+                      {!(busy && message === last) &&
+                        message.blocks.some(
+                          (block) => block.type === 'text' && block.text,
+                        ) && (
+                          <div className="mt-2 -ml-1.5">
+                            <CopyButton
+                              label="Copy response"
+                              text={message.blocks
+                                .map((block) =>
+                                  block.type === 'text' ? block.text : '',
+                                )
+                                .filter(Boolean)
+                                .join('\n\n')}
+                            />
+                          </div>
+                        )}
                     </>
                   )}
                 </article>
               ))}
-              {busy && (
+              {busy && !working && (
                 <div
                   className="flex items-center gap-2 text-caption text-muted-foreground"
                   role="status"
