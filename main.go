@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/ktsoator/threadmark/internal/modelcatalog"
+	"github.com/ktsoator/threadmark/internal/models/openaimodel"
 	"github.com/ktsoator/threadmark/internal/skills"
 	"github.com/ktsoator/threadmark/internal/tools"
 	"github.com/openai/openai-go/v3/option"
@@ -18,7 +20,6 @@ import (
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/cmd/launcher"
 	"google.golang.org/adk/v2/cmd/launcher/full"
-	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/session/database"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
@@ -36,14 +37,19 @@ func main() {
 	if modelName == "" {
 		modelName = "deepseek-flash"
 	}
-
-	model, err := openaimodel.NewModel(ctx, modelName, &openaimodel.ClientConfig{
+	modelInfo, err := modelcatalog.Lookup("deepseek", modelName)
+	if err != nil {
+		log.Fatalf("Failed to find model: %v", err)
+	}
+	model, err := openaimodel.NewModel(ctx, modelInfo.ID, &openaimodel.ClientConfig{
+		API:        openaimodel.APIChatCompletions,
 		APIKey:     apiKey,
 		BaseURL:    "https://api.deepseek.com",
-		API:        openaimodel.APIChatCompletions,
 		HTTPClient: &http.Client{Timeout: 90 * time.Second},
 		Options: []option.RequestOption{
-			option.WithJSONSet("thinking", map[string]string{"type": "disabled"}),
+			option.WithJSONSet("thinking", map[string]string{
+				"type": "disabled",
+			}),
 		},
 	})
 	if err != nil {
@@ -102,7 +108,7 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		log.Printf("Skills directory: %s", dir)
 	}
 	log.Printf("Session database: %s", dbPath)
-	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelName)
+	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelInfo.ID)
 	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(assistant),
 		SessionService: sessionService,
