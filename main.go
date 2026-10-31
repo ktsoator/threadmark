@@ -41,7 +41,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to find model: %v", err)
 	}
-	model, err := openaimodel.NewModel(ctx, modelInfo.ID, &openaimodel.ClientConfig{
+	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
+		Metadata: modelInfo,
+	}, &openaimodel.ClientConfig{
 		API:        openaimodel.APIChatCompletions,
 		APIKey:     apiKey,
 		BaseURL:    "https://api.deepseek.com",

@@ -22,9 +22,9 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 
-	"google.golang.org/adk/v2/model"
 	"github.com/ktsoator/threadmark/internal/models/openaimodel/internal/completions"
 	"github.com/ktsoator/threadmark/internal/models/openaimodel/internal/responses"
+	"google.golang.org/adk/v2/model"
 )
 
 // API selects the OpenAI HTTP API a model talks to. The zero value selects
