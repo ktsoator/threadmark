@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/ktsoator/threadmark/internal/modelcatalog"
+	"github.com/ktsoator/threadmark/internal/models/openaimodel"
 	"github.com/ktsoator/threadmark/internal/skills"
 	"github.com/ktsoator/threadmark/internal/tools"
-	"github.com/openai/openai-go/v3/option"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/cmd/launcher"
 	"google.golang.org/adk/v2/cmd/launcher/full"
-	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/session/database"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
@@ -36,16 +36,25 @@ func main() {
 	if modelName == "" {
 		modelName = "deepseek-flash"
 	}
-
-	model, err := openaimodel.NewModel(ctx, modelName, &openaimodel.ClientConfig{
+	const providerID = "deepseek"
+	modelInfo, err := modelcatalog.Lookup(providerID, modelName)
+	if err != nil {
+		log.Fatalf("Failed to find model: %v", err)
+	}
+	thinking := openaimodel.ThinkingOptions{Effort: "high"}
+	clientConfig := &openaimodel.ClientConfig{
+		API:        openaimodel.APIChatCompletions,
 		APIKey:     apiKey,
 		BaseURL:    "https://api.deepseek.com",
-		API:        openaimodel.APIChatCompletions,
 		HTTPClient: &http.Client{Timeout: 90 * time.Second},
-		Options: []option.RequestOption{
-			option.WithJSONSet("thinking", map[string]string{"type": "disabled"}),
-		},
-	})
+	}
+	clientConfig.Options, err = openaimodel.BuildThinkingOptions(providerID, modelInfo, clientConfig.API, thinking)
+	if err != nil {
+		log.Fatalf("Failed to configure thinking: %v", err)
+	}
+	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
+		Metadata: modelInfo,
+	}, clientConfig)
 	if err != nil {
 		log.Fatalf("Failed to create model: %v", err)
 	}
@@ -102,7 +111,7 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		log.Printf("Skills directory: %s", dir)
 	}
 	log.Printf("Session database: %s", dbPath)
-	log.Printf("Model: %s. Thinking: disabled. Press Ctrl+C to exit.", modelName)
+	log.Printf("Model: %s. Reasoning effort: %s. Press Ctrl+C to exit.", modelInfo.ID, thinking.Effort)
 	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(assistant),
 		SessionService: sessionService,
