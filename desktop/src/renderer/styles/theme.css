@@ -1,7 +1,7 @@
 @theme static {
   --font-sans:
-    'Helvetica Neue', 'Segoe UI', Arial, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+    'Inter Variable', 'Helvetica Neue', 'Segoe UI', Arial, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   --font-display: var(--font-sans);
 
   --color-background: #ffffff;
@@ -29,23 +29,24 @@
   --color-syntax-number: #a66b35;
   --color-syntax-function: #3269a8;
 
-  --text-caption: 0.75rem;
+  --text-base: 0.9375rem;
+  --text-caption: 0.6875rem;
   --text-caption--line-height: 1.5;
   --text-ui: 0.8125rem;
   --text-ui--line-height: normal;
-  --text-body: 0.875rem;
+  --text-body: 0.8125rem;
   --text-body--line-height: 1.25rem;
-  --text-message: 0.9375rem;
+  --text-message: 0.875rem;
   --text-message--line-height: 1.7;
-  --text-message-heading: 0.9375rem;
-  --text-code: 0.75rem;
-  --text-brand: 1.0625rem;
+  --text-message-heading: 0.875rem;
+  --text-code: 0.6875rem;
+  --text-brand: 1rem;
   --text-brand--line-height: normal;
-  --text-title: 1.625rem;
+  --text-title: 1.5625rem;
   --text-title--line-height: 1.25;
-  --text-title-mobile: 1.5rem;
+  --text-title-mobile: 1.4375rem;
   --text-title-mobile--line-height: 1.25;
-  --text-title-small: 1.4375rem;
+  --text-title-small: 1.375rem;
   --text-title-small--line-height: 1.25;
 
   --spacing-sidebar: 14rem;

@@ -2,17 +2,47 @@ import type { AgentEvent, AgentSession } from '../../../../shared/agent/types';
 
 export type MessageBlock =
   | { type: 'text'; text: string; streaming: boolean }
+  | { type: 'thought'; text: string; streaming: boolean }
   | {
       type: 'tool';
       id: string;
       name: string;
+      args?: Record<string, unknown>;
       status: 'running' | 'done' | 'error' | 'stopped';
     };
+
+export type ActivityBlock = Exclude<MessageBlock, { type: 'text' }>;
+
+type MessageSection =
+  | {
+      type: 'text';
+      index: number;
+      block: Extract<MessageBlock, { type: 'text' }>;
+    }
+  | { type: 'activity'; index: number; blocks: ActivityBlock[] };
+
+// Only visible assistant prose separates consecutive thoughts and tool calls.
+export function messageSections(blocks: MessageBlock[]): MessageSection[] {
+  const sections: MessageSection[] = [];
+  blocks.forEach((block, index) => {
+    if (block.type !== 'tool' && !block.text.trim()) return;
+    if (block.type === 'text') {
+      sections.push({ type: 'text', index, block });
+    } else {
+      const previous = sections.at(-1);
+      if (previous?.type === 'activity') previous.blocks.push(block);
+      else sections.push({ type: 'activity', index, blocks: [block] });
+    }
+  });
+  return sections;
+}
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   invocationId?: string;
+  // The current model response can stream several thought and text blocks.
+  streamingStart?: number;
   blocks: MessageBlock[];
 };
 
@@ -34,15 +64,32 @@ export function appendEvent(
   event: AgentEvent,
 ): ChatMessage[] {
   if (event.actions?.compaction) return messages;
-  const parts = event.content?.parts?.filter((part) => !part.thought) ?? [];
-  const text = parts.map((part) => part.text || '').join('');
+  const parts = event.content?.parts ?? [];
+  const content = parts.filter(
+    (part) => part.text && (event.author !== 'user' || !part.thought),
+  );
   const calls = event.partial
     ? []
-    : parts.flatMap((part) => (part.functionCall ? [part.functionCall] : []));
+    : parts.flatMap((part) =>
+        !part.thought && part.functionCall ? [part.functionCall] : [],
+      );
   const responses = parts.flatMap((part) =>
-    part.functionResponse ? [part.functionResponse] : [],
+    !part.thought && part.functionResponse ? [part.functionResponse] : [],
   );
-  if (!text && !calls.length && !responses.length) return messages;
+  const last = messages.at(-1);
+  const continuing =
+    last?.role === 'assistant' &&
+    (!event.invocationId ||
+      !last.invocationId ||
+      last.invocationId === event.invocationId);
+  const completesStream =
+    event.author !== 'user' &&
+    continuing &&
+    last.streamingStart !== undefined &&
+    !event.partial &&
+    event.turnComplete;
+  if (!content.length && !calls.length && !responses.length && !completesStream)
+    return messages;
 
   if (event.author === 'user' && !responses.length) {
     return [
@@ -50,36 +97,67 @@ export function appendEvent(
       {
         id: event.id || `user-${messages.length}`,
         role: 'user',
-        blocks: [{ type: 'text', text, streaming: false }],
+        blocks: [
+          {
+            type: 'text',
+            text: content.map((part) => part.text).join(''),
+            streaming: false,
+          },
+        ],
       },
     ];
   }
 
-  const last = messages.at(-1);
-  const continuing =
-    last?.role === 'assistant' &&
-    (!event.invocationId ||
-      !last.invocationId ||
-      last.invocationId === event.invocationId);
   const message: ChatMessage = continuing
     ? { ...last, blocks: [...last.blocks] }
     : {
-        id: event.id || `assistant-${messages.length}`,
+        // Keep component state when canonical session events replace the stream.
+        id: event.invocationId
+          ? `assistant-${event.invocationId}`
+          : event.id || `assistant-${messages.length}`,
         role: 'assistant',
         invocationId: event.invocationId,
         blocks: [],
       };
-  if (text) {
+  const responseStart = message.streamingStart ?? message.blocks.length;
+  if (event.partial) {
+    message.streamingStart = responseStart;
+  } else if (message.streamingStart !== undefined && !responses.length) {
+    // The final event replaces this response's deltas, including thoughts.
+    // A completion marker without content only ends the existing stream.
+    if (content.length || calls.length) message.blocks.splice(responseStart);
+    else {
+      message.blocks = message.blocks.map((block, index) =>
+        index >= responseStart && block.type !== 'tool'
+          ? { ...block, streaming: false }
+          : block,
+      );
+    }
+    message.streamingStart = undefined;
+  }
+  for (const part of content) {
+    const type = part.thought ? 'thought' : 'text';
+    const text = part.text || '';
     const previous = message.blocks.at(-1);
-    if (previous?.type === 'text' && previous.streaming) {
-      // ADK sends deltas, followed by a non-partial event containing the full response.
+    const sameResponse = message.blocks.length > responseStart;
+    if (previous?.type === type && sameResponse) {
       message.blocks[message.blocks.length - 1] = {
-        type: 'text',
-        text: event.partial ? previous.text + text : text,
+        type,
+        text: previous.text + text,
         streaming: !!event.partial,
       };
     } else {
-      message.blocks.push({ type: 'text', text, streaming: !!event.partial });
+      if (previous && previous.type !== 'tool' && sameResponse) {
+        message.blocks[message.blocks.length - 1] = {
+          ...previous,
+          streaming: false,
+        };
+      }
+      message.blocks.push({
+        type,
+        text,
+        streaming: !!event.partial,
+      });
     }
   }
   for (const call of calls) {
@@ -91,6 +169,7 @@ export function appendEvent(
         type: 'tool',
         id,
         name: call.name,
+        ...(call.args && { args: call.args }),
         status: 'running',
       });
     }
@@ -121,8 +200,9 @@ export function appendEvent(
 export function finishMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages.map((message) => ({
     ...message,
+    streamingStart: undefined,
     blocks: message.blocks.map((block) =>
-      block.type === 'text'
+      block.type !== 'tool'
         ? { ...block, streaming: false }
         : {
             ...block,
