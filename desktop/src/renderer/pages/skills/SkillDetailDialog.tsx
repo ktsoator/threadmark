@@ -1,29 +1,25 @@
-import { ArrowLeft, LoaderCircle, RefreshCw } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { SkillDetail } from '../../../shared/agent/types';
 import Button from '../../components/ui/Button';
-import IconButton from '../../components/ui/IconButton';
-import { cn } from '../../lib/cn';
+import Dialog from '../../components/ui/Dialog';
 import { getSkill } from '../../services/agent';
 
 const Markdown = lazy(() => import('../../components/markdown/Markdown'));
 
-export default function SkillDetailPage({
+export default function SkillDetailDialog({
   name,
-  onBack,
+  onClose,
+  onReturnFocus,
 }: {
   name: string;
-  onBack: () => void;
+  onClose: () => void;
+  onReturnFocus: () => void;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const [skill, setSkill] = useState<SkillDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
 
   useEffect(() => {
     let current = true;
@@ -51,45 +47,24 @@ export default function SkillDetailPage({
     };
   }, [name, revision]);
 
-  const refresh = () => setRevision((value) => value + 1);
+  const retry = () => setRevision((value) => value + 1);
 
   return (
-    <section
-      className="min-h-0 flex-1 overflow-y-auto px-5 py-7 desktop:px-10 desktop:py-12"
-      aria-labelledby="skill-detail-heading"
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={name}
+      description="Skill description and instructions."
+      closeLabel="Close skill details"
+      className="w-[52rem] p-6"
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        onReturnFocus();
+      }}
     >
-      <div className="mx-auto w-full max-w-reading">
-        <div className="mb-7 flex items-center justify-between">
-          <Button
-            className="-ml-2 gap-1.5 px-2"
-            aria-label="Back to skills"
-            onClick={onBack}
-          >
-            <ArrowLeft size={14} aria-hidden="true" />
-            Skills
-          </Button>
-          <IconButton
-            label="Refresh skill"
-            size="md"
-            onClick={refresh}
-            disabled={loading}
-          >
-            <RefreshCw
-              size={15}
-              aria-hidden="true"
-              className={cn(loading && 'animate-spin')}
-            />
-          </IconButton>
-        </div>
-        <h1
-          id="skill-detail-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="font-display text-title-small font-medium tracking-[-0.5px] outline-none [overflow-wrap:anywhere]"
-        >
-          {name}
-        </h1>
-
+      <div className="min-w-0">
         {loading ? (
           <div
             className="flex items-center gap-2 py-10 text-ui text-muted-foreground"
@@ -108,13 +83,13 @@ export default function SkillDetailPage({
             <p className="mt-2 text-body text-muted-foreground [overflow-wrap:anywhere]">
               {error}
             </p>
-            <Button className="mt-3 -ml-3" onClick={refresh}>
+            <Button className="mt-3 -ml-3" onClick={retry}>
               Try again
             </Button>
           </div>
         ) : skill ? (
           <>
-            <p className="mt-3 text-body whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]">
+            <p className="text-body whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]">
               {skill.description}
             </p>
             <div className="mt-7 border-t border-border pt-7 pb-6">
@@ -140,6 +115,6 @@ export default function SkillDetailPage({
           </>
         ) : null}
       </div>
-    </section>
+    </Dialog>
   );
 }

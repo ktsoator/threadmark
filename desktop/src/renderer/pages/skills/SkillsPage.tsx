@@ -12,7 +12,7 @@ import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import { cn } from '../../lib/cn';
 import { listSkills } from '../../services/agent';
-import SkillDetailPage from './SkillDetailPage';
+import SkillDetailDialog from './SkillDetailDialog';
 
 function SkillItem({
   skill,
@@ -28,6 +28,7 @@ function SkillItem({
       <button
         type="button"
         aria-label={skill.name}
+        aria-haspopup="dialog"
         aria-describedby={descriptionId}
         onClick={(event) => onOpen(event.currentTarget)}
         className="group flex w-full items-start gap-3 rounded-dialog border border-border/70 bg-surface-subtle/60 p-4 text-left transition-colors duration-150 hover:border-input-border hover:bg-sidebar"
@@ -69,12 +70,8 @@ export default function SkillsPage() {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    if (selectedName === null) {
-      (returnFocusRef.current ?? headingRef.current)?.focus({
-        preventScroll: true,
-      });
-    }
-  }, [selectedName]);
+    headingRef.current?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     let current = true;
@@ -111,7 +108,6 @@ export default function SkillsPage() {
   return (
     <>
       <section
-        hidden={selectedName !== null}
         className="min-h-0 flex-1 overflow-y-auto px-5 py-7 desktop:px-10 desktop:py-12"
         aria-labelledby="skills-heading"
       >
@@ -239,10 +235,15 @@ export default function SkillsPage() {
         </div>
       </section>
       {selectedName !== null && (
-        <SkillDetailPage
+        <SkillDetailDialog
           key={selectedName}
           name={selectedName}
-          onBack={() => setSelectedName(null)}
+          onClose={() => setSelectedName(null)}
+          onReturnFocus={() => {
+            (returnFocusRef.current ?? headingRef.current)?.focus({
+              preventScroll: true,
+            });
+          }}
         />
       )}
     </>

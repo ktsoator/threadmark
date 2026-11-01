@@ -78,7 +78,7 @@ export default function Dialog({
           }}
         >
           <div className="mb-3 flex items-center justify-between gap-3">
-            <DialogPrimitive.Title className="text-body font-medium tracking-[-0.2px]">
+            <DialogPrimitive.Title className="min-w-0 text-body font-medium tracking-[-0.2px] [overflow-wrap:anywhere]">
               {title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
