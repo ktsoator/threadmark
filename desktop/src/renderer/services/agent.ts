@@ -3,6 +3,9 @@ import type { AgentEvent, RunRequest } from '../../shared/agent/types';
 
 const browserClient = createAdkClient('/api');
 
+export const listSkills = () => (window.agent ?? browserClient).listSkills();
+export const getSkill = (name: string) =>
+  (window.agent ?? browserClient).getSkill(name);
 export const listSessions = () =>
   (window.agent ?? browserClient).listSessions();
 export const getSession = (id: string) =>
