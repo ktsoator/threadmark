@@ -21,7 +21,6 @@ import (
 	"google.golang.org/adk/v2/session/database"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
-	"google.golang.org/adk/v2/tool/skilltoolset/skill"
 )
 
 // App owns the dependencies shared by the agent and HTTP handlers.
@@ -30,7 +29,7 @@ type App struct {
 	SessionService  session.Service
 	MemoryService   memory.Service
 	ArtifactService artifact.Service
-	SkillSource     skill.Source
+	SkillService    *skills.Service
 }
 
 func New(ctx context.Context, cfg Config) (*App, error) {
@@ -64,7 +63,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("discover skills: %w", err)
 	}
-	skillTools, err := skilltoolset.New(ctx, skilltoolset.Config{Source: skillSource})
+	skillTools, err := skilltoolset.New(ctx, skilltoolset.Config{Source: skills.NewAgentSource(skillSource)})
 	if err != nil {
 		return nil, fmt.Errorf("create skill toolset: %w", err)
 	}
@@ -107,6 +106,6 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 		// The ADK launcher previously supplied these defaults.
 		MemoryService:   memory.InMemoryService(),
 		ArtifactService: artifact.InMemoryService(),
-		SkillSource:     skillSource,
+		SkillService:    skills.NewService(skillSource),
 	}, nil
 }

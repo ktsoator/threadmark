@@ -40,13 +40,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	router, err := server.NewRouter(adkrest.ServerConfig{
-		AgentLoader:     application.AgentLoader,
-		SessionService:  application.SessionService,
-		MemoryService:   application.MemoryService,
-		ArtifactService: application.ArtifactService,
-		BindHost:        bindHost,
+
+	router, err := server.NewRouter(server.Config{
+		ADK: adkrest.ServerConfig{
+			AgentLoader:     application.AgentLoader,
+			SessionService:  application.SessionService,
+			MemoryService:   application.MemoryService,
+			ArtifactService: application.ArtifactService,
+			BindHost:        bindHost,
+		},
+		SkillService: application.SkillService,
 	})
+
 	if err != nil {
 		return err
 	}
