@@ -2,120 +2,85 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/glebarez/sqlite"
-	"github.com/ktsoator/threadmark/internal/modelcatalog"
-	"github.com/ktsoator/threadmark/internal/models/openaimodel"
-	"github.com/ktsoator/threadmark/internal/skills"
-	"github.com/ktsoator/threadmark/internal/tools"
-	"google.golang.org/adk/v2/agent"
-	"google.golang.org/adk/v2/agent/llmagent"
-	"google.golang.org/adk/v2/cmd/launcher"
-	"google.golang.org/adk/v2/cmd/launcher/full"
-	"google.golang.org/adk/v2/session/database"
-	"google.golang.org/adk/v2/tool"
-	"google.golang.org/adk/v2/tool/skilltoolset"
+	"github.com/ktsoator/threadmark/internal/app"
+	"github.com/ktsoator/threadmark/internal/server"
+	"google.golang.org/adk/v2/server/adkrest"
 )
 
 func main() {
 	log.SetFlags(0)
-	ctx := context.Background()
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
-	apiKey := strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY"))
-	if apiKey == "" || apiKey == "your-api-key-here" {
-		log.Fatal("Set DEEPSEEK_API_KEY in .env and run 'source .env' to load the configuration.")
-	}
-	modelName := strings.TrimSpace(os.Getenv("DEEPSEEK_MODEL"))
-	if modelName == "" {
-		modelName = "deepseek-flash"
-	}
-	const providerID = "deepseek"
-	modelInfo, err := modelcatalog.Lookup(providerID, modelName)
-	if err != nil {
-		log.Fatalf("Failed to find model: %v", err)
-	}
-	thinking := openaimodel.ThinkingOptions{Effort: "high"}
-	clientConfig := &openaimodel.ClientConfig{
-		API:        openaimodel.APIChatCompletions,
-		APIKey:     apiKey,
-		BaseURL:    "https://api.deepseek.com",
-		HTTPClient: &http.Client{Timeout: 90 * time.Second},
-	}
-	clientConfig.Options, err = openaimodel.BuildThinkingOptions(providerID, modelInfo, clientConfig.API, thinking)
-	if err != nil {
-		log.Fatalf("Failed to configure thinking: %v", err)
-	}
-	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
-		Metadata: modelInfo,
-	}, clientConfig)
-	if err != nil {
-		log.Fatalf("Failed to create model: %v", err)
-	}
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	cwd, err := os.Getwd()
+	cfg, err := app.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to get working directory: %v", err)
+		return err
 	}
-	localTools, err := tools.New(cwd)
+	bindHost, _, err := net.SplitHostPort(cfg.Addr)
 	if err != nil {
-		log.Fatalf("Failed to create tools: %v", err)
+		return fmt.Errorf("invalid server address %q: %w", cfg.Addr, err)
 	}
-
-	skillSource, skillsDirs, err := skills.NewSource(cwd)
+	application, err := app.New(ctx, cfg)
 	if err != nil {
-		log.Fatalf("Failed to discover skill directories: %v", err)
+		return err
 	}
-	skillTools, err := skilltoolset.New(ctx, skilltoolset.Config{Source: skillSource})
-	if err != nil {
-		log.Fatalf("Failed to create skill toolset: %v", err)
-	}
-
-	assistant, err := llmagent.New(llmagent.Config{
-		Name:        "assistant",
-		Model:       model,
-		Description: "A general-purpose assistant that can read, edit, and write files and run Bash commands.",
-		Instruction: fmt.Sprintf(`You are a friendly and accurate general-purpose assistant. Respond concisely in English by default, unless the user requests another language. Clearly state when you are uncertain.
-
-Working directory: %s
-Relative file paths and Bash commands use this directory. Absolute paths are also supported.
-Use read to inspect text files before editing.
-Use edit for targeted changes and write for new files or complete rewrites.
-Use bash to list and search files and to run programs or tests. Each call starts a fresh shell.
-Check tool errors and command exit codes, and use the results to decide what to do next.
-Report changes and verification accurately. Do not claim an operation succeeded unless its tool result confirms it.`, cwd),
-		Tools:                localTools,
-		Toolsets:             []tool.Toolset{skillTools},
-		OnToolErrorCallbacks: []llmagent.OnToolErrorCallback{tools.RecoverError},
+	router, err := server.NewRouter(adkrest.ServerConfig{
+		AgentLoader:     application.AgentLoader,
+		SessionService:  application.SessionService,
+		MemoryService:   application.MemoryService,
+		ArtifactService: application.ArtifactService,
+		BindHost:        bindHost,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		return err
 	}
 
-	dbPath := filepath.Join(cwd, "threadmark.db")
-	sessionService, err := database.NewSessionService(sqlite.Open(dbPath))
+	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
-		log.Fatalf("Failed to create session database: %v", err)
+		return fmt.Errorf("listen: %w", err)
 	}
-	if err := database.AutoMigrate(sessionService); err != nil {
-		log.Fatalf("Failed to migrate session database: %v", err)
+	defer listener.Close()
+	srv := &http.Server{
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		// Cancel active agent runs when the process receives a shutdown signal.
+		BaseContext: func(net.Listener) context.Context { return ctx },
 	}
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(listener) }()
+	log.Printf("API: http://%s/api. Press Ctrl+C to exit.", listener.Addr())
 
-	for _, dir := range skillsDirs {
-		log.Printf("Skills directory: %s", dir)
+	select {
+	case err := <-serveErr:
+		return fmt.Errorf("serve: %w", err)
+	case <-ctx.Done():
+		stop()
 	}
-	log.Printf("Session database: %s", dbPath)
-	log.Printf("Model: %s. Reasoning effort: %s. Press Ctrl+C to exit.", modelInfo.ID, thinking.Effort)
-	if err := full.NewLauncher().Execute(ctx, &launcher.Config{
-		AgentLoader:    agent.NewSingleLoader(assistant),
-		SessionService: sessionService,
-	}, os.Args[1:]); err != nil {
-		log.Fatalf("Failed to run agent: %v", err)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		_ = srv.Close()
+		return fmt.Errorf("shutdown: %w", err)
 	}
+	if err := <-serveErr; !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", err)
+	}
+	return nil
 }
