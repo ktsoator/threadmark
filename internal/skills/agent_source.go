@@ -30,5 +30,6 @@ func (s *agentSource) LoadInstructions(ctx context.Context, name string) (string
 		}
 		return fmt.Sprintf("Skill directory: %s\nResolve relative script paths against this directory.\n\n%s", filepath.Join(s.dirs[i], name), body), nil
 	}
+
 	return "", skill.ErrSkillNotFound
 }

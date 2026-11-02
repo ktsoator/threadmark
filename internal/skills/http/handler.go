@@ -12,6 +12,7 @@ import (
 // RegisterRoutes mounts the Skills endpoints under the provided API group.
 func RegisterRoutes(api *gin.RouterGroup, service *skills.Service) {
 	routes := api.Group("/skills")
+
 	routes.GET("", listSkills(service))
 	routes.GET("/:name", getSkill(service))
 }
@@ -19,11 +20,13 @@ func RegisterRoutes(api *gin.RouterGroup, service *skills.Service) {
 func listSkills(service *skills.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
+
 		items, err := service.List(c.Request.Context())
 		if err != nil {
 			writeSkillError(c, err)
 			return
 		}
+
 		c.JSON(http.StatusOK, struct {
 			Skills []skills.Summary `json:"skills"`
 		}{Skills: items})
@@ -33,11 +36,13 @@ func listSkills(service *skills.Service) gin.HandlerFunc {
 func getSkill(service *skills.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
+
 		item, err := service.Get(c.Request.Context(), c.Param("name"))
 		if err != nil {
 			writeSkillError(c, err)
 			return
 		}
+
 		c.JSON(http.StatusOK, item)
 	}
 }

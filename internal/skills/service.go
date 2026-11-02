@@ -28,11 +28,14 @@ func (s *Service) List(ctx context.Context) ([]Summary, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list skills: %w", err)
 	}
+
 	summaries := make([]Summary, 0, len(items))
 	for _, item := range items {
 		summaries = append(summaries, Summary{Name: item.Name, Description: item.Description})
 	}
+
 	slices.SortFunc(summaries, func(a, b Summary) int { return cmp.Compare(a.Name, b.Name) })
+
 	return summaries, nil
 }
 
@@ -40,14 +43,17 @@ func (s *Service) Get(ctx context.Context, name string) (*Detail, error) {
 	if len(name) > 64 || !namePattern.MatchString(name) {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidName, name)
 	}
+
 	metadata, err := s.source.LoadFrontmatter(ctx, name)
 	if err != nil {
 		return nil, readError(name, err)
 	}
+
 	instructions, err := s.source.LoadInstructions(ctx, name)
 	if err != nil {
 		return nil, readError(name, err)
 	}
+
 	return &Detail{
 		Name:         metadata.Name,
 		Description:  metadata.Description,
@@ -59,5 +65,6 @@ func readError(name string, err error) error {
 	if errors.Is(err, skill.ErrSkillNotFound) {
 		return fmt.Errorf("%w: %s", ErrNotFound, name)
 	}
+
 	return fmt.Errorf("read skill %s: %w", name, err)
 }

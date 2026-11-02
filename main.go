@@ -63,6 +63,7 @@ func run() error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	defer listener.Close()
+
 	srv := &http.Server{
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -80,6 +81,7 @@ func run() error {
 	case <-ctx.Done():
 		stop()
 	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -89,5 +91,6 @@ func run() error {
 	if err := <-serveErr; !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve: %w", err)
 	}
+
 	return nil
 }
