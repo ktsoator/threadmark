@@ -16,10 +16,12 @@ func NewSource(cwd string) (*Source, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	var dirs []string
 	var sources []skill.Source
 	for _, root := range []string{cwd, userHome} {
 		dir := filepath.Join(root, ".agents", "skills")
+
 		info, err := os.Stat(dir)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, nil, fmt.Errorf("inspect skills directory %s: %w", dir, err)
@@ -27,10 +29,12 @@ func NewSource(cwd string) (*Source, []string, error) {
 		if err == nil && !info.IsDir() {
 			return nil, nil, fmt.Errorf("skills path is not a directory: %s", dir)
 		}
+
 		// Keep missing roots so skills added after startup are discoverable.
 		dirs = append(dirs, dir)
 		sources = append(sources, skill.NewFileSystemSource(os.DirFS(dir)))
 	}
+
 	return &Source{
 		Source:  skill.NewMergedSource(sources...),
 		dirs:    dirs,

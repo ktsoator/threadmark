@@ -38,6 +38,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("find model: %w", err)
 	}
+
 	thinking := openaimodel.ThinkingOptions{Effort: "high"}
 	clientConfig := &openaimodel.ClientConfig{
 		API:        openaimodel.APIChatCompletions,
@@ -45,20 +46,24 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		BaseURL:    "https://api.deepseek.com",
 		HTTPClient: &http.Client{Timeout: 90 * time.Second},
 	}
+
 	clientConfig.Options, err = openaimodel.BuildThinkingOptions(providerID, modelInfo, clientConfig.API, thinking)
 	if err != nil {
 		return nil, fmt.Errorf("configure thinking: %w", err)
 	}
+
 	model, err := openaimodel.NewConfiguredModel(ctx, openaimodel.ModelConfig{
 		Metadata: modelInfo,
 	}, clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("create model: %w", err)
 	}
+
 	localTools, err := tools.New(cfg.WorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("create tools: %w", err)
 	}
+
 	skillSource, skillsDirs, err := skills.NewSource(cfg.WorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("discover skills: %w", err)
@@ -67,6 +72,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create skill toolset: %w", err)
 	}
+
 	assistant, err := llmagent.New(llmagent.Config{
 		Name:        "assistant",
 		Model:       model,

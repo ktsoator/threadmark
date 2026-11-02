@@ -19,6 +19,7 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("get working directory: %w", err)
 	}
+
 	cfg := Config{
 		Addr:      strings.TrimSpace(os.Getenv("THREADMARK_ADDR")),
 		WorkDir:   cwd,
@@ -34,5 +35,6 @@ func LoadConfig() (Config, error) {
 	if cfg.APIKey == "" || cfg.APIKey == "your-api-key-here" {
 		return Config{}, fmt.Errorf("set DEEPSEEK_API_KEY before starting the server")
 	}
+
 	return cfg, nil
 }

@@ -32,10 +32,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	bindHost, _, err := net.SplitHostPort(cfg.Addr)
 	if err != nil {
 		return fmt.Errorf("invalid server address %q: %w", cfg.Addr, err)
 	}
+
 	application, err := app.New(ctx, cfg)
 	if err != nil {
 		return err
