@@ -1,4 +1,10 @@
-import { PanelLeftClose, Search, SquarePen, RefreshCw } from 'lucide-react';
+import {
+  BookOpen,
+  PanelLeftClose,
+  Search,
+  SquarePen,
+  RefreshCw,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { AgentSession } from '../../../../shared/agent/types';
 import Button from '../../../components/ui/Button';
@@ -14,6 +20,8 @@ type SidebarProps = {
   onClose: () => void;
   onNewChat: () => void;
   onSearch: () => void;
+  onSkills: () => void;
+  skillsActive: boolean;
   sessions: AgentSession[];
   activeId: string | null;
   onSelect: (id: string) => void;
@@ -28,6 +36,8 @@ export default function Sidebar({
   onClose,
   onNewChat,
   onSearch,
+  onSkills,
+  skillsActive,
   sessions,
   activeId,
   onSelect,
@@ -68,7 +78,7 @@ export default function Sidebar({
             ref={newChatRef}
             className={cn(
               'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
-              !activeId && 'bg-hover',
+              !skillsActive && !activeId && 'bg-hover',
             )}
             onClick={onNewChat}
           >
@@ -81,6 +91,17 @@ export default function Sidebar({
           >
             <Search size={16} />
             <span>Search chats</span>
+          </Button>
+          <Button
+            className={cn(
+              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
+              skillsActive && 'bg-hover',
+            )}
+            onClick={onSkills}
+            aria-current={skillsActive ? 'page' : undefined}
+          >
+            <BookOpen size={16} />
+            <span>Skills</span>
           </Button>
         </nav>
 
@@ -107,7 +128,7 @@ export default function Sidebar({
             <ConversationItem
               key={session.id}
               session={session}
-              active={activeId === session.id}
+              active={!skillsActive && activeId === session.id}
               onSelect={onSelect}
               onAction={(next, trigger) => {
                 actionTriggerRef.current = trigger;

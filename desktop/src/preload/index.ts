@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { AgentBridge } from '../shared/agent/types';
 
 const agent: AgentBridge = {
+  listSkills: () => ipcRenderer.invoke('agent:list-skills'),
+  getSkill: (name) => ipcRenderer.invoke('agent:get-skill', name),
   listSessions: () => ipcRenderer.invoke('agent:list-sessions'),
   getSession: (id) => ipcRenderer.invoke('agent:get-session', id),
   createSession: (title) => ipcRenderer.invoke('agent:create-session', title),

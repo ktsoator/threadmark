@@ -2,6 +2,7 @@ import { PanelLeftOpen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import IconButton from '../../components/ui/IconButton';
 import { cn } from '../../lib/cn';
+import SkillsPage from '../skills/SkillsPage';
 import MessageList from './components/MessageList';
 import PromptComposer from './components/PromptComposer';
 import SearchDialog from './components/SearchDialog';
@@ -20,6 +21,7 @@ export default function HomePage() {
     () => getDesktopMediaQuery().matches,
   );
   const [searchOpen, setSearchOpen] = useState(false);
+  const [page, setPage] = useState<'chat' | 'skills'>('chat');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chat = useConversation();
   const hasConversation =
@@ -34,20 +36,23 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [hasConversation]);
+    if (page === 'chat') inputRef.current?.focus();
+  }, [hasConversation, page]);
 
   function closeMobileSidebar() {
     if (!getDesktopMediaQuery().matches) setSidebarOpen(false);
   }
 
   function startNewChat() {
-    chat.newChat();
+    setPage('chat');
+    // Returning to an unsent new chat should keep its draft.
+    if (page === 'chat' || hasConversation) chat.newChat();
     closeMobileSidebar();
     inputRef.current?.focus();
   }
 
   function selectSession(id: string) {
+    setPage('chat');
     void chat.selectSession(id);
     closeMobileSidebar();
   }
@@ -89,6 +94,11 @@ export default function HomePage() {
         onClose={() => setSidebarOpen(false)}
         onNewChat={startNewChat}
         onSearch={() => setSearchOpen(true)}
+        onSkills={() => {
+          setPage('skills');
+          closeMobileSidebar();
+        }}
+        skillsActive={page === 'skills'}
         sessions={chat.sessions}
         activeId={chat.activeId}
         onSelect={selectSession}
@@ -115,7 +125,7 @@ export default function HomePage() {
         {!sidebarOpen && (
           <div
             className={
-              hasConversation
+              hasConversation || page === 'skills'
                 ? 'flex h-12 shrink-0 items-center px-4'
                 : 'absolute top-4 left-4 z-10'
             }
@@ -130,7 +140,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {hasConversation ? (
+        {page === 'skills' ? (
+          <SkillsPage />
+        ) : hasConversation ? (
           <>
             <MessageList
               key={chat.activeId || 'new'}

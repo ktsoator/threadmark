@@ -33,7 +33,18 @@ export type AgentSession = {
 
 export type RunRequest = { sessionId: string; text: string };
 
+export type SkillSummary = {
+  name: string;
+  description: string;
+};
+
+export type SkillDetail = SkillSummary & {
+  instructions: string;
+};
+
 export type AgentBridge = {
+  listSkills: () => Promise<SkillSummary[]>;
+  getSkill: (name: string) => Promise<SkillDetail>;
   listSessions: () => Promise<AgentSession[]>;
   getSession: (id: string) => Promise<AgentSession>;
   createSession: (title: string) => Promise<AgentSession>;

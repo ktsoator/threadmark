@@ -1,5 +1,11 @@
 import { createParser } from 'eventsource-parser';
-import type { AgentEvent, AgentSession, RunRequest } from './types';
+import type {
+  AgentEvent,
+  AgentSession,
+  RunRequest,
+  SkillDetail,
+  SkillSummary,
+} from './types';
 
 const appName = 'assistant';
 const userId = 'desktop-user';
@@ -23,7 +29,14 @@ export function createAdkClient(baseURL: string) {
       );
     }
     if (!response.ok) {
-      const detail = (await response.text()).trim().slice(0, 400);
+      const body = (await response.text()).trim();
+      let detail = body.slice(0, 400);
+      try {
+        const data = JSON.parse(body);
+        if (typeof data.error === 'string') detail = data.error.slice(0, 400);
+      } catch {
+        // ADK endpoints can return plain-text errors.
+      }
       throw new Error(
         detail || `The agent service returned HTTP ${response.status}.`,
       );
@@ -32,6 +45,15 @@ export function createAdkClient(baseURL: string) {
   }
 
   return {
+    async listSkills(): Promise<SkillSummary[]> {
+      const data: { skills: SkillSummary[] } = await (
+        await request('/skills')
+      ).json();
+      return data.skills;
+    },
+    async getSkill(name: string): Promise<SkillDetail> {
+      return (await request(`/skills/${encodeURIComponent(name)}`)).json();
+    },
     async listSessions(): Promise<AgentSession[]> {
       return (await request(sessionsPath)).json();
     },

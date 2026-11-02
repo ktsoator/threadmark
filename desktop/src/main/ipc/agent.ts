@@ -14,6 +14,14 @@ export function registerAgentHandlers() {
     }
   }
 
+  ipcMain.handle('agent:list-skills', (event) => {
+    checkSender(event);
+    return client.listSkills();
+  });
+  ipcMain.handle('agent:get-skill', (event, name: string) => {
+    checkSender(event);
+    return client.getSkill(name);
+  });
   ipcMain.handle('agent:list-sessions', (event) => {
     checkSender(event);
     return client.listSessions();
