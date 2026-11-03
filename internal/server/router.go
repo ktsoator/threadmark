@@ -1,37 +1,56 @@
 package server
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
-	"github.com/ktsoator/threadmark/internal/skills"
-	skillhttp "github.com/ktsoator/threadmark/internal/skills/http"
-	"google.golang.org/adk/v2/server/adkrest"
+	"github.com/ktsoator/threadmark/internal/server/handler"
+	"github.com/ktsoator/threadmark/internal/server/middleware"
 )
 
-type Config struct {
-	ADK          adkrest.ServerConfig
-	SkillService *skills.Service
-}
-
-// NewRouter creates the HTTP entry point for project and ADK endpoints.
+// NewRouter registers all backend routes and their shared middleware.
 func NewRouter(cfg Config) (*gin.Engine, error) {
-	if cfg.SkillService == nil {
-		return nil, fmt.Errorf("skill service is required")
-	}
-	adkServer, err := adkrest.NewServer(cfg.ADK)
+	h, err := handler.New(handler.Config{
+		AgentLoader: cfg.AgentLoader, SessionService: cfg.SessionService,
+		SkillService: cfg.SkillService, SSEWriteTimeout: cfg.SSEWriteTimeout,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("create ADK server: %w", err)
+		return nil, err
 	}
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+	router.HandleMethodNotAllowed = true
+	router.Use(middleware.Origin(middleware.OriginConfig{
+		BindHost: cfg.BindHost, AllowedOrigins: cfg.AllowedOrigins,
+	}), middleware.BodyLimit(cfg.MaxPayloadSize))
 	if err := router.SetTrustedProxies(nil); err != nil {
 		return nil, err
 	}
-	registerADK(router, adkServer)
+
+	router.GET("/health", h.Health)
+	router.HEAD("/health", h.Health)
 
 	api := router.Group("/api")
-	skillhttp.RegisterRoutes(api, cfg.SkillService)
+	api.GET("/health", h.Health)
+	api.HEAD("/health", h.Health)
+	api.GET("/list-apps", h.ListApps)
+	api.HEAD("/list-apps", h.ListApps)
+	api.POST("/run", h.Run)
+	api.POST("/run_sse", h.RunSSE)
+
+	sessions := api.Group("/apps/:app_name/users/:user_id/sessions")
+	sessions.GET("", h.ListSessions)
+	sessions.HEAD("", h.ListSessions)
+	sessions.POST("", h.CreateSession)
+	sessions.POST("/:session_id", h.CreateSession)
+	sessions.GET("/:session_id", h.GetSession)
+	sessions.HEAD("/:session_id", h.GetSession)
+	sessions.PATCH("/:session_id", h.UpdateSession)
+	sessions.DELETE("/:session_id", h.DeleteSession)
+
+	skills := api.Group("/skills")
+	skills.GET("", h.ListSkills)
+	skills.GET("/:name", h.GetSkill)
+
+	registerMethodFallback(router)
 
 	return router, nil
 }

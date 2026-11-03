@@ -15,8 +15,6 @@ import (
 	"github.com/ktsoator/threadmark/internal/tools"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
-	"google.golang.org/adk/v2/artifact"
-	"google.golang.org/adk/v2/memory"
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/session/database"
 	"google.golang.org/adk/v2/tool"
@@ -25,11 +23,9 @@ import (
 
 // App owns the dependencies shared by the agent and HTTP handlers.
 type App struct {
-	AgentLoader     agent.Loader
-	SessionService  session.Service
-	MemoryService   memory.Service
-	ArtifactService artifact.Service
-	SkillService    *skills.Service
+	AgentLoader    agent.Loader
+	SessionService session.Service
+	SkillService   *skills.Service
 }
 
 func New(ctx context.Context, cfg Config) (*App, error) {
@@ -109,9 +105,6 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 	return &App{
 		AgentLoader:    agent.NewSingleLoader(assistant),
 		SessionService: sessionService,
-		// The ADK launcher previously supplied these defaults.
-		MemoryService:   memory.InMemoryService(),
-		ArtifactService: artifact.InMemoryService(),
-		SkillService:    skills.NewService(skillSource),
+		SkillService:   skills.NewService(skillSource),
 	}, nil
 }
