@@ -14,7 +14,6 @@ import (
 
 	"github.com/ktsoator/threadmark/internal/app"
 	"github.com/ktsoator/threadmark/internal/server"
-	"google.golang.org/adk/v2/server/adkrest"
 )
 
 func main() {
@@ -44,14 +43,10 @@ func run() error {
 	}
 
 	router, err := server.NewRouter(server.Config{
-		ADK: adkrest.ServerConfig{
-			AgentLoader:     application.AgentLoader,
-			SessionService:  application.SessionService,
-			MemoryService:   application.MemoryService,
-			ArtifactService: application.ArtifactService,
-			BindHost:        bindHost,
-		},
-		SkillService: application.SkillService,
+		AgentLoader:    application.AgentLoader,
+		SessionService: application.SessionService,
+		BindHost:       bindHost,
+		SkillService:   application.SkillService,
 	})
 
 	if err != nil {
