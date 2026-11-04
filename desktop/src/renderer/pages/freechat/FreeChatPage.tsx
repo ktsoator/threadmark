@@ -11,12 +11,6 @@ export default function FreeChatPage({
 }) {
   return (
     <>
-      <header className="flex min-w-0 shrink-0 items-center gap-3 border-b border-border px-5 py-4 desktop:px-8">
-        <h1 className="shrink-0 text-base font-medium">Free chat</h1>
-        <p className="min-w-0 truncate text-caption text-muted-foreground">
-          Keep every thought. Mention a model when you want a reply.
-        </p>
-      </header>
       {chat.messages.length || chat.loading ? (
         <MessageList
           key={chat.activeId ?? 'new'}
@@ -28,9 +22,9 @@ export default function FreeChatPage({
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
           <div className="max-w-composer text-center">
-            <h2 className="text-title-small font-medium tracking-tight">
+            <h1 className="text-title-small font-medium tracking-tight">
               Room to think
-            </h2>
+            </h1>
             <p className="mt-3 text-message text-muted-foreground">
               Write down an idea, a question, or something you learned.
               <br />
