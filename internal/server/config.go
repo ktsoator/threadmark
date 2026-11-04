@@ -1,18 +1,22 @@
 package server
 
 import (
+	"context"
 	"time"
 
-	"github.com/ktsoator/threadmark/internal/skills"
-	"google.golang.org/adk/v2/agent"
-	"google.golang.org/adk/v2/session"
+	"github.com/ktsoator/threadmark/internal/runtime"
+	"github.com/ktsoator/threadmark/project"
+	"github.com/ktsoator/threadmark/session"
+	"github.com/ktsoator/threadmark/skills"
 )
 
 // Config supplies shared services and HTTP limits to the Gin server.
 type Config struct {
-	AgentLoader    agent.Loader
-	SessionService session.Service
-	SkillService   *skills.Service
+	Projects       project.Service
+	Sessions       *session.Service
+	Runtime        *runtime.Service
+	DeleteProject  func(context.Context, *project.DeleteRequest) error
+	SkillsFor      func(context.Context, session.DirectoryContext) (*skills.Service, error)
 	BindHost       string
 	AllowedOrigins []string
 	MaxPayloadSize int64

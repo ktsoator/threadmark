@@ -42,11 +42,12 @@ func run() error {
 		return err
 	}
 
+	defer application.Close()
+
 	router, err := server.NewRouter(server.Config{
-		AgentLoader:    application.AgentLoader,
-		SessionService: application.SessionService,
-		BindHost:       bindHost,
-		SkillService:   application.SkillService,
+		Projects: application.Projects, Sessions: application.Sessions,
+		Runtime: application.Runtime, DeleteProject: application.DeleteProject,
+		SkillsFor: application.SkillsFor, BindHost: bindHost,
 	})
 
 	if err != nil {
