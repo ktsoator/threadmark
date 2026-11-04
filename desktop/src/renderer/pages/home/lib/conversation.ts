@@ -8,6 +8,7 @@ export type MessageBlock =
       id: string;
       name: string;
       args?: Record<string, unknown>;
+      result?: Record<string, unknown>;
       status: 'running' | 'done' | 'error' | 'stopped';
     };
 
@@ -188,6 +189,7 @@ export function appendEvent(
       if (block.type === 'tool') {
         message.blocks[index] = {
           ...block,
+          result: response.response,
           status: response.response?.error ? 'error' : 'done',
         };
       }

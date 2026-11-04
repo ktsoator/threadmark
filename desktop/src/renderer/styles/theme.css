@@ -24,6 +24,10 @@
   --color-selection: #dce8ff;
   --color-overlay: #23273538;
   --color-error: #b84c4c;
+  --color-diff-add: #2e6b45;
+  --color-diff-add-bg: #edf7ef;
+  --color-diff-remove: #b84c4c;
+  --color-diff-remove-bg: #fbeeee;
   --color-syntax-keyword: #7c4a9e;
   --color-syntax-string: #3b755f;
   --color-syntax-number: #a66b35;

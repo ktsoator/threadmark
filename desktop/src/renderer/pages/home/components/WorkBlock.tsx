@@ -2,6 +2,7 @@ import { ChevronRight, LoaderCircle, Wrench } from 'lucide-react';
 import { useId, useState } from 'react';
 import { cn } from '../../../lib/cn';
 import type { ActivityBlock } from '../lib/conversation';
+import EditToolBlock from './EditToolBlock';
 import ThoughtBlock from './ThoughtBlock';
 
 function ToolBlock({
@@ -67,7 +68,10 @@ export default function WorkBlock({
   const contentId = useId();
   const [expanded, setExpanded] = useState<boolean>();
   const grouped = blocks.length > 1;
-  const open = !grouped || (expanded ?? active);
+  const failed = blocks.some(
+    (block) => block.type === 'tool' && block.status === 'error',
+  );
+  const open = !grouped || (expanded ?? (active || failed));
   const label = active ? 'Working…' : 'Work';
 
   return (
@@ -125,6 +129,13 @@ export default function WorkBlock({
                   key={index}
                   text={block.text}
                   streaming={block.streaming}
+                  nested={grouped}
+                  onToggle={onToggle}
+                />
+              ) : block.name === 'edit' ? (
+                <EditToolBlock
+                  key={block.id}
+                  block={block}
                   nested={grouped}
                   onToggle={onToggle}
                 />
