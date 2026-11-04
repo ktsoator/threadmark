@@ -13,6 +13,7 @@ import (
 type TitleSource string
 
 const (
+	// TitleNone allows generation, including when a first-message fallback is stored.
 	TitleNone      TitleSource = "none"
 	TitleGenerated TitleSource = "generated"
 	TitleManual    TitleSource = "manual"

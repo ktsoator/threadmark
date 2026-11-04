@@ -9,9 +9,11 @@ type Ref struct {
 	SessionID string
 }
 
-// CreateRequest adds project binding and initial events to ADK session creation.
+// CreateRequest adds display metadata, project binding and initial events to ADK session creation.
 type CreateRequest struct {
 	adksession.CreateRequest
+	// Title is an optional fallback that a generated or manual title can replace.
+	Title     string
 	ProjectID string
 	Events    []*adksession.Event
 }
@@ -20,7 +22,7 @@ type UpdateRequest struct {
 	Ref
 	StateDelta map[string]any
 	Title      *string
-	// TitleSource defaults to manual. Generated titles only fill an unnamed conversation.
+	// TitleSource defaults to manual. Generated titles never replace generated or manual titles.
 	TitleSource TitleSource
 }
 

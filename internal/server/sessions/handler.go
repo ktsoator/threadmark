@@ -52,7 +52,7 @@ func (h *Handler) Create(c *gin.Context) {
 		CreateRequest: session.CreateRequest{
 			AppName: c.Param("app_name"), UserID: c.Param("user_id"), SessionID: c.Param("session_id"), State: body.State,
 		},
-		ProjectID: body.ProjectID, Events: initialEvents,
+		Title: body.Title, ProjectID: body.ProjectID, Events: initialEvents,
 	})
 	if err != nil {
 		httpx.Error(c, err)
