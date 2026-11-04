@@ -32,6 +32,21 @@ const sorted = (sessions: AgentSession[]) =>
     (a, b) => b.lastUpdateTime - a.lastUpdateTime || a.id.localeCompare(b.id),
   );
 
+// History responses may arrive before a title save finishes. Keep the title already displayed.
+function withLocalTitle(session: AgentSession, current?: AgentSession) {
+  if (
+    current?.title &&
+    (!session.title ||
+      (current.titleSource === 'manual' && session.titleSource !== 'manual'))
+  )
+    return {
+      ...session,
+      title: current.title,
+      titleSource: current.titleSource,
+    };
+  return session;
+}
+
 function restoredSelection(
   sessions: AgentSession[],
   projects: Project[],
@@ -103,6 +118,7 @@ export default function useSessionLibrary() {
   const version = useRef(0);
   const restored = useRef(false);
   const deleted = useRef(new Set<string>());
+  const titleRequests = useRef(new Map<string, object>());
 
   const navigate = useCallback((next: Selection) => {
     restored.current = true;
@@ -126,8 +142,17 @@ export default function useSessionLibrary() {
       ]);
       if (token !== version.current) return;
       setProjects(projects);
-      setSessions(
-        sorted(sessions.filter((session) => !deleted.current.has(session.id))),
+      setSessions((current) =>
+        sorted(
+          sessions
+            .filter((session) => !deleted.current.has(session.id))
+            .map((session) =>
+              withLocalTitle(
+                session,
+                current.find((item) => item.id === session.id),
+              ),
+            ),
+        ),
       );
       setReady(true);
       setError('');
@@ -162,9 +187,11 @@ export default function useSessionLibrary() {
   }, [navigate]);
 
   useEffect(() => {
+    const pendingTitles = titleRequests.current;
     void refresh();
     return () => {
       version.current++;
+      pendingTitles.clear();
     };
   }, [refresh]);
   useEffect(() => {
@@ -178,9 +205,28 @@ export default function useSessionLibrary() {
     if (deleted.current.has(session.id)) return;
     version.current++;
     setSessions((items) =>
-      sorted([session, ...items.filter((item) => item.id !== session.id)]),
+      sorted([
+        withLocalTitle(
+          session,
+          items.find((item) => item.id === session.id),
+        ),
+        ...items.filter((item) => item.id !== session.id),
+      ]),
     );
   }, []);
+
+  const updateTitle = useCallback(
+    (id: string, title: string, titleSource: AgentSession['titleSource']) => {
+      if (deleted.current.has(id)) return;
+      version.current++;
+      setSessions((items) =>
+        items.map((item) =>
+          item.id === id ? { ...item, title, titleSource } : item,
+        ),
+      );
+    },
+    [],
+  );
 
   function selectSession(id: string) {
     const session = sessions.find((item) => item.id === id);
@@ -190,7 +236,8 @@ export default function useSessionLibrary() {
     navigate({ page: 'chat', target: { sessionId: null, projectId, kind } });
   }
   async function createSession(options: CreateSessionOptions) {
-    const session = await agent.createSession(options);
+    const stored = await agent.createSession(options);
+    const session = { ...stored, title: stored.title || options.title };
     upsert(session);
     return session;
   }
@@ -199,9 +246,43 @@ export default function useSessionLibrary() {
       navigate({ page: 'chat', target: targetFor(session) });
   }
   async function renameSession(id: string, title: string) {
-    upsert(await agent.renameSession(id, title));
+    // Invalidate an automatic title as soon as the user starts saving their own name.
+    titleRequests.current.set(id, {});
+    const session = await agent.renameSession(id, title);
+    updateTitle(id, session.title, session.titleSource);
+  }
+  async function generateTitle(id: string, text: string) {
+    if (
+      titleRequests.current.has(id) ||
+      deleted.current.has(id) ||
+      sessions.some((item) => item.id === id && item.titleSource !== 'none')
+    )
+      return;
+    const token = {};
+    titleRequests.current.set(id, token);
+    const isCurrent = () =>
+      titleRequests.current.get(id) === token && !deleted.current.has(id);
+    let title: string;
+    try {
+      title = await agent.generateTitle(text);
+    } catch {
+      // Keep the first-message title if generation fails; the conversation continues normally.
+      return;
+    }
+    if (!isCurrent()) return;
+    updateTitle(id, title, 'generated');
+    try {
+      const session = await agent.renameSession(id, title, 'generated');
+      if (isCurrent()) updateTitle(id, session.title, session.titleSource);
+    } catch {
+      if (isCurrent())
+        setNotice(
+          'Could not save the conversation title. Rename it to save a name.',
+        );
+    }
   }
   async function deleteSession(id: string, cleanup: boolean) {
+    titleRequests.current.delete(id);
     const result = await agent.deleteSession(id, cleanup);
     deleted.current.add(id);
     version.current++;
@@ -257,6 +338,7 @@ export default function useSessionLibrary() {
     createSession,
     adoptCreated,
     renameSession,
+    generateTitle,
     deleteSession,
     createProject,
     renameProject,

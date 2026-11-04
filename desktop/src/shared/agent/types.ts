@@ -23,6 +23,8 @@ export type AgentEvent = {
 
 export type AgentSession = {
   id: string;
+  title: string;
+  titleSource: 'none' | 'generated' | 'manual';
   projectId: string | null;
   managedDirectory: string | null;
   lastUpdateTime: number;
@@ -96,7 +98,12 @@ export type AgentAPI = {
   getSession: (id: string) => Promise<AgentSession>;
   createSession: (options: CreateSessionOptions) => Promise<AgentSession>;
   appendMessage: (id: string, text: string) => Promise<AgentSession>;
-  renameSession: (id: string, title: string) => Promise<AgentSession>;
+  generateTitle: (text: string) => Promise<string>;
+  renameSession: (
+    id: string,
+    title: string,
+    source?: 'generated' | 'manual',
+  ) => Promise<AgentSession>;
   deleteSession: (
     id: string,
     deleteWorkspace?: boolean,

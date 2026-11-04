@@ -38,6 +38,7 @@ export function registerAgentHandlers() {
   handle('agent:get-session', client.getSession);
   handle('agent:create-session', client.createSession);
   handle('agent:append-message', client.appendMessage);
+  handle('agent:generate-title', client.generateTitle);
   handle('agent:rename-session', client.renameSession);
   handle('agent:delete-session', client.deleteSession);
   ipcMain.handle(

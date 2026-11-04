@@ -18,8 +18,9 @@ const agent: AgentBridge = {
     ipcRenderer.invoke('agent:create-session', options),
   appendMessage: (id, text) =>
     ipcRenderer.invoke('agent:append-message', id, text),
-  renameSession: (id, title) =>
-    ipcRenderer.invoke('agent:rename-session', id, title),
+  generateTitle: (text) => ipcRenderer.invoke('agent:generate-title', text),
+  renameSession: (id, title, source) =>
+    ipcRenderer.invoke('agent:rename-session', id, title, source),
   deleteSession: (id, cleanup) =>
     ipcRenderer.invoke('agent:delete-session', id, cleanup),
   run: (requestId, request) =>

@@ -174,6 +174,8 @@ export default function useChat(
         library.adoptCreated(session, expectedSelection);
       }
       controller.signal.throwIfAborted();
+      if (!chat.messages.some((item) => item.role === 'user'))
+        void library.generateTitle(id, text);
       if (!shouldReply(text)) {
         const session = await agent.appendMessage(id, text);
         saved = true;

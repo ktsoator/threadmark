@@ -122,7 +122,6 @@ export function createAdkClient(baseURL: string) {
       ).json();
     },
     async createSession({
-      title,
       kind,
       projectId,
     }: CreateSessionOptions): Promise<AgentSession> {
@@ -133,7 +132,6 @@ export function createAdkClient(baseURL: string) {
             projectId,
             state: {
               __session_metadata__: {
-                displayName: title,
                 kind: kind === 'freechat' ? kind : undefined,
               },
             },
@@ -149,23 +147,30 @@ export function createAdkClient(baseURL: string) {
         })
       ).json();
     },
-    async renameSession(id: string, title: string): Promise<AgentSession> {
-      const displayName = title.trim();
-      if (!displayName) throw new Error('Enter a conversation name.');
+    async generateTitle(text: string): Promise<string> {
+      const data: { title: string } = await (
+        await request('/title', {
+          method: 'POST',
+          body: JSON.stringify({ text }),
+          signal: AbortSignal.timeout(20_000),
+        })
+      ).json();
+      const title = data.title?.trim();
+      if (!title) throw new Error('The agent service returned an empty title.');
+      return title;
+    },
+    async renameSession(
+      id: string,
+      title: string,
+      source: 'generated' | 'manual' = 'manual',
+    ): Promise<AgentSession> {
+      title = title.trim();
+      if (!title) throw new Error('Enter a conversation name.');
       const path = `${sessionsPath}/${encodeURIComponent(id)}`;
-      const session: AgentSession = await (await request(path)).json();
       return (
         await request(path, {
           method: 'PATCH',
-          body: JSON.stringify({
-            stateDelta: {
-              // ADK replaces each state key, so preserve the other metadata fields.
-              __session_metadata__: {
-                ...session.state.__session_metadata__,
-                displayName,
-              },
-            },
-          }),
+          body: JSON.stringify({ title, titleSource: source }),
         })
       ).json();
     },

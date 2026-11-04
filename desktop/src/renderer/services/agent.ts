@@ -55,9 +55,17 @@ export const appendMessage = (id: string, text: string) =>
   request(window.agent?.appendMessage(id, text), () =>
     browserClient.appendMessage(id, text),
   );
-export const renameSession = (id: string, title: string) =>
-  request(window.agent?.renameSession(id, title), () =>
-    browserClient.renameSession(id, title),
+export const generateTitle = (text: string) =>
+  request(window.agent?.generateTitle(text), () =>
+    browserClient.generateTitle(text),
+  );
+export const renameSession = (
+  id: string,
+  title: string,
+  source: 'generated' | 'manual' = 'manual',
+) =>
+  request(window.agent?.renameSession(id, title, source), () =>
+    browserClient.renameSession(id, title, source),
   );
 
 const activeRuns = new Map<
@@ -68,22 +76,9 @@ export async function deleteSession(id: string, cleanup = false) {
   const runs = [...(activeRuns.get(id) ?? [])];
   runs.forEach((run) => run.abort());
   await Promise.all(runs.map((run) => run.done));
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await request(window.agent?.deleteSession(id, cleanup), () =>
-        browserClient.deleteSession(id, cleanup),
-      );
-    } catch (error) {
-      if (
-        !(error instanceof ServiceError) ||
-        error.code !== 'SESSION_BUSY' ||
-        attempt >= 5
-      )
-        throw error;
-      // A cancelled fetch can settle before the server has finished cancelling its tools.
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-  }
+  return request(window.agent?.deleteSession(id, cleanup), () =>
+    browserClient.deleteSession(id, cleanup),
+  );
 }
 
 export async function runAgent(
