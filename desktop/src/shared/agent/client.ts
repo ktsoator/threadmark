@@ -122,6 +122,7 @@ export function createAdkClient(baseURL: string) {
       ).json();
     },
     async createSession({
+      title,
       kind,
       projectId,
     }: CreateSessionOptions): Promise<AgentSession> {
@@ -129,6 +130,7 @@ export function createAdkClient(baseURL: string) {
         await request(sessionsPath, {
           method: 'POST',
           body: JSON.stringify({
+            title,
             projectId,
             state: {
               __session_metadata__: {

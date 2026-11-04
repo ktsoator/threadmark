@@ -37,6 +37,7 @@ function withLocalTitle(session: AgentSession, current?: AgentSession) {
   if (
     current?.title &&
     (!session.title ||
+      session.titleSource === 'none' ||
       (current.titleSource === 'manual' && session.titleSource !== 'manual'))
   )
     return {
@@ -236,8 +237,7 @@ export default function useSessionLibrary() {
     navigate({ page: 'chat', target: { sessionId: null, projectId, kind } });
   }
   async function createSession(options: CreateSessionOptions) {
-    const stored = await agent.createSession(options);
-    const session = { ...stored, title: stored.title || options.title };
+    const session = await agent.createSession(options);
     upsert(session);
     return session;
   }

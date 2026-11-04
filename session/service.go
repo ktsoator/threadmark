@@ -91,6 +91,13 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*adksession.C
 		return nil, ErrInvalidRequest
 	}
 	opts := *req
+	if opts.Title != "" {
+		var err error
+		opts.Title, err = validTitle(opts.Title)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err := ValidateState(opts.State); err != nil {
 		return nil, err
 	}
@@ -145,7 +152,7 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*adksession.C
 			return err
 		}
 		stored = result.Session
-		if err := tx.Create(&storedMetadata{AppName: ref.AppName, UserID: ref.UserID, SessionID: ref.SessionID, Metadata: Metadata{TitleSource: TitleNone}}).Error; err != nil {
+		if err := tx.Create(&storedMetadata{AppName: ref.AppName, UserID: ref.UserID, SessionID: ref.SessionID, Metadata: Metadata{Title: opts.Title, TitleSource: TitleNone}}).Error; err != nil {
 			return err
 		}
 		for _, event := range opts.Events {

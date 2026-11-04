@@ -22,6 +22,7 @@ type Session struct {
 }
 
 type CreateRequest struct {
+	Title     string         `json:"title,omitempty"`
 	ProjectID string         `json:"projectId,omitempty"`
 	State     map[string]any `json:"state"`
 	Events    []events.Event `json:"events"`
