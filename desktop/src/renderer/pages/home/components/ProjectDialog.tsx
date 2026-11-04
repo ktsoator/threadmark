@@ -1,5 +1,5 @@
-import { FolderOpen, LoaderCircle } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChevronRight, FolderOpen, LoaderCircle } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
 import type { Project } from '../../../../shared/agent/types';
 import { ServiceError } from '../../../../shared/agent/errors';
 import Button from '../../../components/ui/Button';
@@ -32,6 +32,7 @@ export default function ProjectDialog({
   const [pending, setPending] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const pendingRef = useRef(false);
+  const folderHintId = useId();
   const deleting = action.type === 'delete';
   const nonempty =
     deleting &&
@@ -90,6 +91,7 @@ export default function ProjectDialog({
   return (
     <Dialog
       open
+      className="p-5 small:p-6"
       title={
         deleting
           ? 'Remove project?'
@@ -116,7 +118,7 @@ export default function ProjectDialog({
           event.preventDefault();
           void submit();
         }}
-        className="space-y-4"
+        className="grid gap-6 pt-2"
       >
         {deleting ? (
           <div className="space-y-2 text-body text-secondary-foreground">
@@ -134,12 +136,12 @@ export default function ProjectDialog({
             )}
           </div>
         ) : (
-          <>
-            <label className="block space-y-1.5 text-ui text-secondary-foreground">
+          <div className="grid gap-6">
+            <label className="grid gap-2 text-ui text-secondary-foreground">
               <span>Project name</span>
               <input
                 autoFocus
-                className="h-9 w-full rounded-control border border-input-border bg-background px-2.5 text-body text-foreground outline-none focus:border-focus-border"
+                className="h-10 w-full rounded-control border border-input-border bg-background px-3 text-body text-foreground outline-none focus:border-focus-border"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 maxLength={120}
@@ -148,40 +150,55 @@ export default function ProjectDialog({
                 placeholder="Project name"
               />
             </label>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <span className="text-ui text-secondary-foreground">
                 Working folder
               </span>
-              <div className="flex items-start gap-2 rounded-navigation border border-border bg-sidebar p-3 text-body text-secondary-foreground">
-                <FolderOpen size={16} className="mt-0.5 shrink-0" />
-                <span className="min-w-0 [overflow-wrap:anywhere]">
-                  {directory || 'Choose the folder this project will use.'}
-                </span>
-              </div>
-              {action.type === 'create' && (
+              {action.type === 'create' ? (
                 <Button
                   onClick={() => {
                     void chooseFolder();
                   }}
                   disabled={!canSelectDirectory() || pending || choosing}
-                  className="-ml-3 text-accent"
+                  aria-label={directory ? 'Change folder' : 'Choose folder'}
+                  aria-describedby={folderHintId}
+                  className="h-auto min-h-10 w-full justify-start gap-2.5 rounded-control border border-input-border bg-sidebar px-3 py-2 text-left text-body text-secondary-foreground enabled:hover:border-focus-border enabled:hover:bg-surface-subtle disabled:opacity-60"
                 >
-                  {choosing && (
-                    <LoaderCircle size={14} className="animate-spin" />
+                  {choosing ? (
+                    <LoaderCircle size={16} className="shrink-0 animate-spin" />
+                  ) : (
+                    <FolderOpen size={16} className="shrink-0" />
                   )}
-                  {directory ? 'Change folder' : 'Choose folder'}
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                    {directory || 'Choose folder'}
+                  </span>
+                  {directory ? (
+                    <span className="text-caption text-accent">Change</span>
+                  ) : (
+                    <ChevronRight
+                      size={16}
+                      className="shrink-0 text-muted-foreground"
+                    />
+                  )}
                 </Button>
+              ) : (
+                <div className="flex min-h-10 items-center gap-2.5 rounded-control border border-border bg-sidebar px-3 py-2 text-body text-secondary-foreground">
+                  <FolderOpen size={16} className="shrink-0" />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                    {directory}
+                  </span>
+                </div>
               )}
-              {action.type === 'create' && !canSelectDirectory() && (
-                <p className="text-caption text-muted-foreground">
-                  Folder selection is available in the desktop app.
-                </p>
-              )}
-              <p className="text-caption leading-5 text-muted-foreground">
-                Conversations in this project share this folder.
+              <p
+                id={folderHintId}
+                className="text-caption leading-5 text-muted-foreground"
+              >
+                {action.type === 'create' && !canSelectDirectory()
+                  ? 'Folder selection is available in the desktop app.'
+                  : 'Conversations in this project share this folder.'}
               </p>
             </div>
-          </>
+          </div>
         )}
         {error && (
           <p
@@ -191,13 +208,18 @@ export default function ProjectDialog({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button onClick={onClose} disabled={pending || choosing}>
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <Button
+            className="h-9 px-4"
+            onClick={onClose}
+            disabled={pending || choosing}
+          >
             Cancel
           </Button>
           <Button
             type="submit"
             variant={deleting ? 'danger' : 'primary'}
+            className="h-9 px-4"
             disabled={
               pending ||
               choosing ||
