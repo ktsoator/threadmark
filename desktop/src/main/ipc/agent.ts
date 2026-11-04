@@ -30,9 +30,16 @@ export function registerAgentHandlers() {
     checkSender(event);
     return client.getSession(id);
   });
-  ipcMain.handle('agent:create-session', (event, title: string) => {
+  ipcMain.handle(
+    'agent:create-session',
+    (event, title: string, kind?: 'freechat') => {
+      checkSender(event);
+      return client.createSession(title, kind);
+    },
+  );
+  ipcMain.handle('agent:append-message', (event, id: string, text: string) => {
     checkSender(event);
-    return client.createSession(title);
+    return client.appendMessage(id, text);
   });
   ipcMain.handle('agent:rename-session', (event, id: string, title: string) => {
     checkSender(event);

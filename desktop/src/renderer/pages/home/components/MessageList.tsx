@@ -1,5 +1,12 @@
 import { ArrowDown } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import CopyButton from '../../../components/ui/CopyButton';
 import IconButton from '../../../components/ui/IconButton';
 import { type ChatMessage, messageSections } from '../lib/conversation';
@@ -11,10 +18,12 @@ export default function MessageList({
   messages,
   busy,
   loading,
+  renderUserMessage = (text) => text,
 }: {
   messages: ChatMessage[];
   busy: boolean;
   loading: boolean;
+  renderUserMessage?: (text: string) => ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -95,11 +104,13 @@ export default function MessageList({
                 >
                   {message.role === 'user' ? (
                     <div className="ml-auto w-fit max-w-[85%] rounded-2xl bg-sidebar px-4 py-2.5 text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
-                      {message.blocks
-                        .map((block) =>
-                          block.type === 'text' ? block.text : '',
-                        )
-                        .join('')}
+                      {renderUserMessage(
+                        message.blocks
+                          .map((block) =>
+                            block.type === 'text' ? block.text : '',
+                          )
+                          .join(''),
+                      )}
                     </div>
                   ) : (
                     <>

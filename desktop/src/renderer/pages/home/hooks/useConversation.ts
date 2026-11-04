@@ -35,7 +35,9 @@ export default function useConversation() {
   const refreshSessions = useCallback(async () => {
     const current = ++listVersion.current;
     try {
-      const items = await agent.listSessions();
+      const items = (await agent.listSessions()).filter(
+        (session) => session.state.__session_metadata__?.kind !== 'freechat',
+      );
       if (current !== listVersion.current) return;
       setSessions(items.sort((a, b) => b.lastUpdateTime - a.lastUpdateTime));
       setHistoryError('');

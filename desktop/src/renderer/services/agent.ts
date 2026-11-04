@@ -10,8 +10,10 @@ export const listSessions = () =>
   (window.agent ?? browserClient).listSessions();
 export const getSession = (id: string) =>
   (window.agent ?? browserClient).getSession(id);
-export const createSession = (title: string) =>
-  (window.agent ?? browserClient).createSession(title);
+export const createSession = (title: string, kind?: 'freechat') =>
+  (window.agent ?? browserClient).createSession(title, kind);
+export const appendMessage = (id: string, text: string) =>
+  (window.agent ?? browserClient).appendMessage(id, text);
 export const renameSession = (id: string, title: string) =>
   (window.agent ?? browserClient).renameSession(id, title);
 export const deleteSession = (id: string) =>

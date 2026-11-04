@@ -2,6 +2,8 @@ import { PanelLeftOpen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import IconButton from '../../components/ui/IconButton';
 import { cn } from '../../lib/cn';
+import FreeChatPage from '../freechat/FreeChatPage';
+import useFreeChat from '../freechat/hooks/useFreeChat';
 import SkillsPage from '../skills/SkillsPage';
 import MessageList from './components/MessageList';
 import PromptComposer from './components/PromptComposer';
@@ -21,9 +23,13 @@ export default function HomePage() {
     () => getDesktopMediaQuery().matches,
   );
   const [searchOpen, setSearchOpen] = useState(false);
-  const [page, setPage] = useState<'chat' | 'skills'>('chat');
+  const [page, setPage] = useState<'chat' | 'skills' | 'freechat'>(() => {
+    const saved = localStorage.getItem('threadmark.active-page');
+    return saved === 'skills' || saved === 'freechat' ? saved : 'chat';
+  });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chat = useConversation();
+  const freeChat = useFreeChat(page === 'freechat');
   const hasConversation =
     !!chat.activeId || chat.messages.length > 0 || chat.loading;
 
@@ -38,6 +44,10 @@ export default function HomePage() {
   useEffect(() => {
     if (page === 'chat') inputRef.current?.focus();
   }, [hasConversation, page]);
+
+  useEffect(() => {
+    localStorage.setItem('threadmark.active-page', page);
+  }, [page]);
 
   function closeMobileSidebar() {
     if (!getDesktopMediaQuery().matches) setSidebarOpen(false);
@@ -56,6 +66,15 @@ export default function HomePage() {
     void chat.selectSession(id);
     closeMobileSidebar();
   }
+
+  function selectFreeChat(id: string) {
+    setPage('freechat');
+    freeChat.selectSession(id);
+    closeMobileSidebar();
+  }
+
+  const history = page === 'freechat' ? freeChat : chat;
+  const selectHistory = page === 'freechat' ? selectFreeChat : selectSession;
 
   const composer = (
     <PromptComposer
@@ -99,14 +118,24 @@ export default function HomePage() {
           closeMobileSidebar();
         }}
         skillsActive={page === 'skills'}
-        sessions={chat.sessions}
-        activeId={chat.activeId}
-        onSelect={selectSession}
-        onRename={chat.renameSession}
-        onDelete={chat.deleteSession}
-        historyError={chat.historyError}
+        onFreeChat={() => {
+          setPage('freechat');
+          closeMobileSidebar();
+        }}
+        freeChatActive={page === 'freechat'}
+        onNewFreeChat={() => {
+          setPage('freechat');
+          freeChat.newChat();
+          closeMobileSidebar();
+        }}
+        sessions={history.sessions}
+        activeId={history.activeId}
+        onSelect={selectHistory}
+        onRename={history.renameSession}
+        onDelete={history.deleteSession}
+        historyError={history.historyError}
         onRetry={() => {
-          void chat.refreshSessions();
+          void history.refreshSessions();
         }}
       />
       {sidebarOpen && (
@@ -125,7 +154,7 @@ export default function HomePage() {
         {!sidebarOpen && (
           <div
             className={
-              hasConversation || page === 'skills'
+              hasConversation || page !== 'chat'
                 ? 'flex h-12 shrink-0 items-center px-4'
                 : 'absolute top-4 left-4 z-10'
             }
@@ -142,6 +171,8 @@ export default function HomePage() {
 
         {page === 'skills' ? (
           <SkillsPage />
+        ) : page === 'freechat' ? (
+          <FreeChatPage chat={freeChat} />
         ) : hasConversation ? (
           <>
             <MessageList
@@ -178,8 +209,8 @@ export default function HomePage() {
       <SearchDialog
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
-        sessions={chat.sessions}
-        onSelect={selectSession}
+        sessions={history.sessions}
+        onSelect={selectHistory}
       />
     </div>
   );

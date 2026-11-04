@@ -62,13 +62,24 @@ export function createAdkClient(baseURL: string) {
         await request(`${sessionsPath}/${encodeURIComponent(id)}`)
       ).json();
     },
-    async createSession(title: string): Promise<AgentSession> {
+    async createSession(
+      title: string,
+      kind?: 'freechat',
+    ): Promise<AgentSession> {
       return (
         await request(sessionsPath, {
           method: 'POST',
           body: JSON.stringify({
-            state: { __session_metadata__: { displayName: title } },
+            state: { __session_metadata__: { displayName: title, kind } },
           }),
+        })
+      ).json();
+    },
+    async appendMessage(id: string, text: string): Promise<AgentSession> {
+      return (
+        await request(`${sessionsPath}/${encodeURIComponent(id)}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ text }),
         })
       ).json();
     },
