@@ -45,6 +45,7 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 	sessions.HEAD("/:session_id", h.GetSession)
 	sessions.PATCH("/:session_id", h.UpdateSession)
 	sessions.DELETE("/:session_id", h.DeleteSession)
+	sessions.POST("/:session_id/messages", h.AppendMessage)
 
 	skills := api.Group("/skills")
 	skills.GET("", h.ListSkills)

@@ -24,6 +24,10 @@ type UpdateSessionRequest struct {
 	StateDelta map[string]any `json:"stateDelta"`
 }
 
+type AppendMessageRequest struct {
+	Text string `json:"text"`
+}
+
 func FromSession(stored session.Session) Session {
 	state := map[string]any{}
 	maps.Insert(state, stored.State().All())
