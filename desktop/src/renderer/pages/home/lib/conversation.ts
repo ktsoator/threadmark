@@ -187,10 +187,17 @@ export function appendEvent(
     if (index !== -1) {
       const block = message.blocks[index];
       if (block.type === 'tool') {
+        const result = response.response;
+        const failed =
+          !!result?.error ||
+          (block.name === 'bash' &&
+            typeof result?.exitCode === 'number' &&
+            Number.isSafeInteger(result.exitCode) &&
+            result.exitCode !== 0);
         message.blocks[index] = {
           ...block,
-          result: response.response,
-          status: response.response?.error ? 'error' : 'done',
+          result,
+          status: failed ? 'error' : 'done',
         };
       }
     }

@@ -2,6 +2,7 @@ import { ChevronRight, LoaderCircle, Wrench } from 'lucide-react';
 import { useId, useState } from 'react';
 import { cn } from '../../../lib/cn';
 import type { ActivityBlock } from '../lib/conversation';
+import BashToolBlock from './BashToolBlock';
 import EditToolBlock from './EditToolBlock';
 import ReadToolBlock from './ReadToolBlock';
 import ThoughtBlock from './ThoughtBlock';
@@ -130,6 +131,13 @@ export default function WorkBlock({
                   key={index}
                   text={block.text}
                   streaming={block.streaming}
+                  nested={grouped}
+                  onToggle={onToggle}
+                />
+              ) : block.name === 'bash' ? (
+                <BashToolBlock
+                  key={block.id}
+                  block={block}
                   nested={grouped}
                   onToggle={onToggle}
                 />
