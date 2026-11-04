@@ -1,6 +1,8 @@
 import {
   BookOpen,
+  MessagesSquare,
   PanelLeftClose,
+  Plus,
   Search,
   SquarePen,
   RefreshCw,
@@ -22,6 +24,9 @@ type SidebarProps = {
   onSearch: () => void;
   onSkills: () => void;
   skillsActive: boolean;
+  onFreeChat: () => void;
+  freeChatActive: boolean;
+  onNewFreeChat: () => void;
   sessions: AgentSession[];
   activeId: string | null;
   onSelect: (id: string) => void;
@@ -38,6 +43,9 @@ export default function Sidebar({
   onSearch,
   onSkills,
   skillsActive,
+  onFreeChat,
+  freeChatActive,
+  onNewFreeChat,
   sessions,
   activeId,
   onSelect,
@@ -78,7 +86,7 @@ export default function Sidebar({
             ref={newChatRef}
             className={cn(
               'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
-              !skillsActive && !activeId && 'bg-hover',
+              !skillsActive && !freeChatActive && !activeId && 'bg-hover',
             )}
             onClick={onNewChat}
           >
@@ -95,6 +103,17 @@ export default function Sidebar({
           <Button
             className={cn(
               'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
+              freeChatActive && 'bg-hover',
+            )}
+            onClick={onFreeChat}
+            aria-current={freeChatActive ? 'page' : undefined}
+          >
+            <MessagesSquare size={16} />
+            <span>Free chat</span>
+          </Button>
+          <Button
+            className={cn(
+              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
               skillsActive && 'bg-hover',
             )}
             onClick={onSkills}
@@ -104,6 +123,15 @@ export default function Sidebar({
             <span>Skills</span>
           </Button>
         </nav>
+
+        {freeChatActive && (
+          <div className="mt-4 flex items-center justify-between pr-3.5 pl-5 text-caption text-muted-foreground">
+            <span>Free chats</span>
+            <IconButton label="New free chat" onClick={onNewFreeChat}>
+              <Plus size={16} />
+            </IconButton>
+          </div>
+        )}
 
         {historyError && (
           <div
@@ -121,8 +149,11 @@ export default function Sidebar({
           </div>
         )}
         <ul
-          className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4"
-          aria-label="Conversations"
+          className={cn(
+            'min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-4',
+            freeChatActive ? 'pt-1' : 'pt-4',
+          )}
+          aria-label={freeChatActive ? 'Free chats' : 'Conversations'}
         >
           {sessions.map((session) => (
             <ConversationItem

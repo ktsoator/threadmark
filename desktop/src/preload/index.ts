@@ -6,7 +6,10 @@ const agent: AgentBridge = {
   getSkill: (name) => ipcRenderer.invoke('agent:get-skill', name),
   listSessions: () => ipcRenderer.invoke('agent:list-sessions'),
   getSession: (id) => ipcRenderer.invoke('agent:get-session', id),
-  createSession: (title) => ipcRenderer.invoke('agent:create-session', title),
+  createSession: (title, kind) =>
+    ipcRenderer.invoke('agent:create-session', title, kind),
+  appendMessage: (id, text) =>
+    ipcRenderer.invoke('agent:append-message', id, text),
   renameSession: (id, title) =>
     ipcRenderer.invoke('agent:rename-session', id, title),
   deleteSession: (id) => ipcRenderer.invoke('agent:delete-session', id),

@@ -26,7 +26,11 @@ export type AgentSession = {
   lastUpdateTime: number;
   events: AgentEvent[];
   state: {
-    __session_metadata__?: { displayName?: string; [key: string]: unknown };
+    __session_metadata__?: {
+      displayName?: string;
+      kind?: 'freechat';
+      [key: string]: unknown;
+    };
     [key: string]: unknown;
   };
 };
@@ -47,7 +51,8 @@ export type AgentBridge = {
   getSkill: (name: string) => Promise<SkillDetail>;
   listSessions: () => Promise<AgentSession[]>;
   getSession: (id: string) => Promise<AgentSession>;
-  createSession: (title: string) => Promise<AgentSession>;
+  createSession: (title: string, kind?: 'freechat') => Promise<AgentSession>;
+  appendMessage: (id: string, text: string) => Promise<AgentSession>;
   renameSession: (id: string, title: string) => Promise<AgentSession>;
   deleteSession: (id: string) => Promise<void>;
   run: (requestId: string, request: RunRequest) => Promise<{ error?: string }>;
