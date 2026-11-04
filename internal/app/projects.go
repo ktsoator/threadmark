@@ -5,6 +5,7 @@ import (
 
 	"github.com/ktsoator/threadmark/project"
 	"github.com/ktsoator/threadmark/session"
+	adksession "google.golang.org/adk/v2/session"
 )
 
 // DeleteProject keeps reference checking and deletion atomic with project session creation.
@@ -14,7 +15,7 @@ func (a *App) DeleteProject(ctx context.Context, req *project.DeleteRequest) err
 	if _, err := a.Projects.Get(ctx, &project.GetRequest{AppName: req.AppName, UserID: req.UserID, ProjectID: req.ProjectID}); err != nil {
 		return err
 	}
-	items, err := a.Sessions.List(ctx, &session.ListRequest{AppName: req.AppName, UserID: req.UserID})
+	items, err := a.Sessions.List(ctx, &adksession.ListRequest{AppName: req.AppName, UserID: req.UserID})
 	if err != nil {
 		return err
 	}

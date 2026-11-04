@@ -31,10 +31,10 @@ var (
 type Service struct {
 	model    model.LLM
 	store    session.Service
-	sessions sessions.Service
+	sessions *sessions.Service
 }
 
-func NewService(llm model.LLM, store session.Service, conversations sessions.Service) *Service {
+func NewService(llm model.LLM, store session.Service, conversations *sessions.Service) *Service {
 	return &Service{model: llm, store: store, sessions: conversations}
 }
 

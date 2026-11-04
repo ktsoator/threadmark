@@ -13,15 +13,15 @@ import (
 )
 
 type Handler struct {
-	service conversations.Service
+	service *conversations.Service
 }
 
-func New(service conversations.Service) *Handler {
+func New(service *conversations.Service) *Handler {
 	return &Handler{service: service}
 }
 
 func (h *Handler) List(c *gin.Context) {
-	items, err := h.service.List(c.Request.Context(), &conversations.ListRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id")})
+	items, err := h.service.List(c.Request.Context(), &session.ListRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id")})
 	if err != nil {
 		httpx.Error(c, err)
 		return
@@ -43,7 +43,10 @@ func (h *Handler) Create(c *gin.Context) {
 		initialEvents = append(initialEvents, events.ToSessionEvent(event))
 	}
 	stored, err := h.service.Create(c.Request.Context(), &conversations.CreateRequest{
-		Ref: sessionRef(c), ProjectID: body.ProjectID, State: body.State, Events: initialEvents,
+		CreateRequest: session.CreateRequest{
+			AppName: c.Param("app_name"), UserID: c.Param("user_id"), SessionID: c.Param("session_id"), State: body.State,
+		},
+		ProjectID: body.ProjectID, Events: initialEvents,
 	})
 	if err != nil {
 		httpx.Error(c, err)
@@ -53,7 +56,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	stored, err := h.service.Get(c.Request.Context(), &conversations.GetRequest{Ref: sessionRef(c)})
+	stored, err := h.service.Get(c.Request.Context(), &session.GetRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id"), SessionID: c.Param("session_id")})
 	if err != nil {
 		httpx.Error(c, err)
 		return
@@ -72,7 +75,7 @@ func (h *Handler) AppendMessage(c *gin.Context) {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
+	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -85,7 +88,7 @@ func (h *Handler) Update(c *gin.Context) {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
+	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -94,7 +97,10 @@ func (h *Handler) Delete(c *gin.Context) {
 		httpx.Fail(c, http.StatusBadRequest, "deleteWorkspace must be true or false.")
 		return
 	}
-	result, err := h.service.Delete(c.Request.Context(), &conversations.DeleteRequest{Ref: sessionRef(c), DeleteDirectory: option == "true"})
+	result, err := h.service.Delete(c.Request.Context(), &conversations.DeleteRequest{
+		DeleteRequest:   session.DeleteRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id"), SessionID: c.Param("session_id")},
+		DeleteDirectory: option == "true",
+	})
 	if err != nil {
 		httpx.Error(c, err)
 		return

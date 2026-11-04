@@ -1,31 +1,30 @@
-package database
+package session
 
 import (
 	"context"
 
 	"github.com/ktsoator/threadmark/project"
-	"github.com/ktsoator/threadmark/session"
 )
 
 // DirectoryFor resolves the same directory for agent tools and the Skills page. History and
 // metadata operations do not depend on the directory being available.
-func (s *service) DirectoryFor(ctx context.Context, scope session.DirectoryContext) (string, error) {
+func (s *Service) DirectoryFor(ctx context.Context, scope DirectoryContext) (string, error) {
 	if scope.SessionID != "" && scope.ProjectID != "" {
-		return "", session.ErrConflictingContext
+		return "", ErrConflictingContext
 	}
 	if scope.SessionID == "" && scope.ProjectID == "" {
 		return "", nil
 	}
 	if scope.AppName == "" || scope.UserID == "" {
-		return "", session.ErrMissingContext
+		return "", ErrMissingContext
 	}
 	var path string
 	if scope.SessionID != "" {
-		stored, err := s.get(ctx, session.Ref{AppName: scope.AppName, UserID: scope.UserID, SessionID: scope.SessionID})
+		stored, err := s.get(ctx, Ref{AppName: scope.AppName, UserID: scope.UserID, SessionID: scope.SessionID})
 		if err != nil {
 			return "", err
 		}
-		scope.ProjectID = session.ProjectIDOf(stored)
+		scope.ProjectID = ProjectIDOf(stored)
 		path = s.ManagedDirectory(stored)
 	}
 	if scope.ProjectID != "" {
@@ -36,14 +35,14 @@ func (s *service) DirectoryFor(ctx context.Context, scope session.DirectoryConte
 		path = result.Project.Directory
 	}
 	if path == "" {
-		return "", session.ErrMissingDirectory
+		return "", ErrMissingDirectory
 	}
 	real, err := project.NormalizeDirectory(path)
 	if err != nil {
-		return "", session.ErrDirectoryUnavailable
+		return "", ErrDirectoryUnavailable
 	}
 	if real != path {
-		return "", session.ErrDirectoryChanged
+		return "", ErrDirectoryChanged
 	}
 	return path, nil
 }

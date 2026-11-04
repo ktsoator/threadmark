@@ -13,7 +13,7 @@ import (
 // Config supplies shared services and HTTP limits to the Gin server.
 type Config struct {
 	Projects       project.Service
-	Sessions       session.Service
+	Sessions       *session.Service
 	Runtime        *runtime.Service
 	DeleteProject  func(context.Context, *project.DeleteRequest) error
 	SkillsFor      func(context.Context, session.DirectoryContext) (*skills.Service, error)

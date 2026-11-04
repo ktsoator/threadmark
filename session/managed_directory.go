@@ -1,4 +1,4 @@
-package database
+package session
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/ktsoator/threadmark/session"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -23,9 +22,9 @@ type managedOwner struct {
 
 // ManagedDirectory is derived from managedId, never stored as a path.
 // Project sessions use Project.Directory and do not own a managed directory.
-func (s *service) ManagedDirectory(stored adksession.Session) string {
-	id := session.ManagedIDOf(stored)
-	if session.ProjectIDOf(stored) != "" || !validManagedID(id) {
+func (s *Service) ManagedDirectory(stored adksession.Session) string {
+	id := ManagedIDOf(stored)
+	if ProjectIDOf(stored) != "" || !validManagedID(id) {
 		return ""
 	}
 	return filepath.Join(s.rootPath, id)
@@ -36,7 +35,7 @@ func validManagedID(id string) bool {
 	return err == nil && parsed.String() == id
 }
 
-func (s *service) allocateManaged(ref session.Ref) (string, error) {
+func (s *Service) allocateManaged(ref Ref) (string, error) {
 	root, err := s.managedRoot()
 	if err != nil {
 		return "", err
@@ -63,7 +62,7 @@ func (s *service) allocateManaged(ref session.Ref) (string, error) {
 	return id, nil
 }
 
-func (s *service) managedRoot() (*os.Root, error) {
+func (s *Service) managedRoot() (*os.Root, error) {
 	path := s.rootPath
 	real, err := filepath.EvalSymlinks(path)
 	if err != nil || real != path {
@@ -72,7 +71,7 @@ func (s *service) managedRoot() (*os.Root, error) {
 	return os.OpenRoot(path)
 }
 
-func (s *service) removeManaged(ref session.Ref, id string, onlyEmpty bool) error {
+func (s *Service) removeManaged(ref Ref, id string, onlyEmpty bool) error {
 	if !validManagedID(id) {
 		return fmt.Errorf("invalid managed directory ID")
 	}
