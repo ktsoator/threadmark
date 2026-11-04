@@ -6,6 +6,7 @@ import BashToolBlock from './BashToolBlock';
 import EditToolBlock from './EditToolBlock';
 import ReadToolBlock from './ReadToolBlock';
 import ThoughtBlock from './ThoughtBlock';
+import WriteToolBlock from './WriteToolBlock';
 
 function ToolBlock({
   block,
@@ -16,18 +17,12 @@ function ToolBlock({
 }) {
   const running = block.status === 'running';
   const failed = block.status === 'error';
-  const detail = block.name === 'bash' ? block.args?.command : block.args?.path;
-  const action = {
-    read: running ? 'Reading' : 'Read',
-    write: running ? 'Writing' : 'Wrote',
-    edit: running ? 'Editing' : 'Edited',
-    bash: running ? 'Running' : 'Ran',
-  }[block.name];
+  const detail = block.args?.path;
   const label = failed
     ? `Failed ${block.name}`
     : block.status === 'stopped'
       ? `Stopped ${block.name}`
-      : action || `${running ? 'Running' : 'Used'} ${block.name}`;
+      : `${running ? 'Running' : 'Used'} ${block.name}`;
 
   return (
     <div
@@ -150,6 +145,13 @@ export default function WorkBlock({
                 />
               ) : block.name === 'edit' ? (
                 <EditToolBlock
+                  key={block.id}
+                  block={block}
+                  nested={grouped}
+                  onToggle={onToggle}
+                />
+              ) : block.name === 'write' ? (
+                <WriteToolBlock
                   key={block.id}
                   block={block}
                   nested={grouped}
