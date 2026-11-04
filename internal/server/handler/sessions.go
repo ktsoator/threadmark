@@ -10,6 +10,7 @@ import (
 	"github.com/ktsoator/threadmark/internal/server/dto"
 	"google.golang.org/adk/v2/platform"
 	"google.golang.org/adk/v2/session"
+	"google.golang.org/genai"
 )
 
 func (h *Handler) ListSessions(c *gin.Context) {
@@ -53,6 +54,32 @@ func (h *Handler) CreateSession(c *gin.Context) {
 func (h *Handler) GetSession(c *gin.Context) {
 	stored, err := h.sessions.Get(c.Request.Context(), sessionRequest(c))
 	if err != nil {
+		sessionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.FromSession(stored.Session))
+}
+
+// AppendMessage records a user message without starting an agent invocation.
+func (h *Handler) AppendMessage(c *gin.Context) {
+	var body dto.AppendMessageRequest
+	if !decodeJSON(c, &body, false) {
+		return
+	}
+	if strings.TrimSpace(body.Text) == "" {
+		fail(c, http.StatusBadRequest, "Message text is required.")
+		return
+	}
+	ctx := c.Request.Context()
+	stored, err := h.sessions.Get(ctx, sessionRequest(c))
+	if err != nil {
+		sessionError(c, err)
+		return
+	}
+	event := session.NewEvent(ctx, platform.NewUUID(ctx))
+	event.Author = "user"
+	event.Content = genai.NewContentFromText(body.Text, genai.RoleUser)
+	if err := h.sessions.AppendEvent(ctx, stored.Session, event); err != nil {
 		sessionError(c, err)
 		return
 	}
