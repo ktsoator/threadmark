@@ -148,8 +148,8 @@ export default function HomePage() {
           <div
             className={
               hasConversation || skillsActive || target.kind === 'freechat'
-                ? 'flex h-12 shrink-0 items-center px-4'
-                : 'absolute top-4 left-4 z-10'
+                ? 'flex h-12 shrink-0 items-center px-4 desktop:absolute desktop:top-3 desktop:left-3 desktop:z-10 desktop:h-auto desktop:p-0'
+                : 'absolute top-3 left-3 z-10'
             }
           >
             <IconButton
@@ -164,7 +164,10 @@ export default function HomePage() {
         {library.notice && (
           <div
             role="status"
-            className="flex items-start gap-2 border-b border-border bg-sidebar px-5 py-3 text-body text-secondary-foreground"
+            className={cn(
+              'flex items-start gap-2 border-b border-border bg-sidebar px-5 py-3 text-body text-secondary-foreground',
+              !sidebarOpen && 'desktop:pl-14',
+            )}
           >
             <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
               {library.notice}
