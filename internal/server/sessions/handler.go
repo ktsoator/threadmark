@@ -1,31 +1,33 @@
 package sessions
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ktsoator/threadmark/internal/server/events"
 	"github.com/ktsoator/threadmark/internal/server/httpx"
-	conversations "github.com/ktsoator/threadmark/internal/sessions"
+	conversations "github.com/ktsoator/threadmark/session"
 	"google.golang.org/adk/v2/session"
 )
 
 type Handler struct {
-	service *conversations.Service
+	service conversations.Service
 }
 
-func New(service *conversations.Service) *Handler {
+func New(service conversations.Service) *Handler {
 	return &Handler{service: service}
 }
 
 func (h *Handler) List(c *gin.Context) {
-	items, err := h.service.List(c.Request.Context(), c.Param("app_name"), c.Param("user_id"))
+	items, err := h.service.List(c.Request.Context(), &conversations.ListRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id")})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	result := make([]Session, 0, len(items))
-	for _, item := range items {
+	result := make([]Session, 0, len(items.Sessions))
+	for _, item := range items.Sessions {
 		result = append(result, FromSession(item, h.service.ManagedDirectory(item)))
 	}
 	c.JSON(http.StatusOK, result)
@@ -40,23 +42,23 @@ func (h *Handler) Create(c *gin.Context) {
 	for _, event := range body.Events {
 		initialEvents = append(initialEvents, events.ToSessionEvent(event))
 	}
-	stored, err := h.service.Create(c.Request.Context(), conversations.CreateOptions{
+	stored, err := h.service.Create(c.Request.Context(), &conversations.CreateRequest{
 		Ref: sessionRef(c), ProjectID: body.ProjectID, State: body.State, Events: initialEvents,
 	})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	stored, err := h.service.Get(c.Request.Context(), sessionRef(c))
+	stored, err := h.service.Get(c.Request.Context(), &conversations.GetRequest{Ref: sessionRef(c)})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
 }
 
 // AppendMessage records a user message without starting an agent invocation.
@@ -65,12 +67,12 @@ func (h *Handler) AppendMessage(c *gin.Context) {
 	if !httpx.DecodeJSON(c, &body, false) {
 		return
 	}
-	stored, err := h.service.AppendMessage(c.Request.Context(), sessionRef(c), body.Text)
+	stored, err := h.service.AppendMessage(c.Request.Context(), &conversations.AppendMessageRequest{Ref: sessionRef(c), Text: body.Text})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -78,12 +80,12 @@ func (h *Handler) Update(c *gin.Context) {
 	if !httpx.DecodeJSON(c, &body, true) {
 		return
 	}
-	stored, err := h.service.Update(c.Request.Context(), sessionRef(c), body.StateDelta)
+	stored, err := h.service.Update(c.Request.Context(), &conversations.UpdateRequest{Ref: sessionRef(c), StateDelta: body.StateDelta})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -92,12 +94,17 @@ func (h *Handler) Delete(c *gin.Context) {
 		httpx.Fail(c, http.StatusBadRequest, "deleteWorkspace must be true or false.")
 		return
 	}
-	result, err := h.service.Delete(c.Request.Context(), sessionRef(c), option == "true")
+	result, err := h.service.Delete(c.Request.Context(), &conversations.DeleteRequest{Ref: sessionRef(c), DeleteDirectory: option == "true"})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	response := DeleteResponse{Deleted: true, WorkspaceCleanup: string(result.Cleanup), RetainedPath: result.Directory}
+	if result.CleanupError != nil {
+		log.Printf("Delete conversation directory: %v", result.CleanupError)
+		response.Warning = fmt.Sprintf("Conversation deleted. The workspace could not be removed. Files may remain at %s", result.Directory)
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func sessionRef(c *gin.Context) conversations.Ref {

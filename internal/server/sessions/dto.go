@@ -4,7 +4,7 @@ import (
 	"maps"
 
 	"github.com/ktsoator/threadmark/internal/server/events"
-	conversations "github.com/ktsoator/threadmark/internal/sessions"
+	conversations "github.com/ktsoator/threadmark/session"
 	"google.golang.org/adk/v2/session"
 )
 
@@ -53,4 +53,12 @@ func FromSession(stored session.Session, managedDirectory string) Session {
 		LastUpdateTime: stored.LastUpdateTime().Unix(), Events: history, State: state,
 		ProjectID: projectID, ManagedDirectory: directory,
 	}
+}
+
+// DeleteResponse preserves the HTTP cleanup result independently of the session service.
+type DeleteResponse struct {
+	Deleted          bool   `json:"deleted"`
+	WorkspaceCleanup string `json:"workspaceCleanup"`
+	RetainedPath     string `json:"retainedPath,omitempty"`
+	Warning          string `json:"warning,omitempty"`
 }

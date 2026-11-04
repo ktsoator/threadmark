@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ktsoator/threadmark/internal/modelcatalog"
+	"github.com/ktsoator/threadmark/modelcatalog"
 )
 
 func main() {

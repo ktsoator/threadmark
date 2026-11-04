@@ -13,13 +13,13 @@ import (
 
 // NewRouter registers all backend routes and their shared middleware.
 func NewRouter(cfg Config) (*gin.Engine, error) {
-	if cfg.Projects == nil || cfg.Sessions == nil || cfg.Runtime == nil || cfg.DeleteProject == nil {
-		return nil, fmt.Errorf("project, session, runtime services and project deletion coordinator are required")
+	if cfg.Projects == nil || cfg.Sessions == nil || cfg.Runtime == nil || cfg.DeleteProject == nil || cfg.SkillsFor == nil {
+		return nil, fmt.Errorf("project, session, runtime services and project deletion and skills coordinators are required")
 	}
 	projectHandler := projecthttp.New(cfg.Projects, cfg.DeleteProject)
 	sessionHandler := sessionhttp.New(cfg.Sessions)
 	runtimeHandler := runtimehttp.New(cfg.Runtime, cfg.SSEWriteTimeout)
-	skillHandler := skillhttp.New(cfg.Sessions)
+	skillHandler := skillhttp.New(cfg.SkillsFor)
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 	router.HandleMethodNotAllowed = true

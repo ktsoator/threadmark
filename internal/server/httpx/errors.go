@@ -8,9 +8,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ktsoator/threadmark/internal/projects"
 	"github.com/ktsoator/threadmark/internal/runtime"
-	"github.com/ktsoator/threadmark/internal/sessions"
+	"github.com/ktsoator/threadmark/project"
+	sessions "github.com/ktsoator/threadmark/session"
 	"google.golang.org/adk/v2/session"
 )
 
@@ -19,8 +19,14 @@ func Fail(c *gin.Context, status int, message string) {
 }
 
 func Error(c *gin.Context, err error) {
+	if errors.Is(err, runtime.ErrInvalidRequest) || errors.Is(err, runtime.ErrInvalidParts) {
+		Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
 	status, code := http.StatusBadRequest, ""
 	switch {
+	case errors.Is(err, sessions.ErrInvalidRequest), errors.Is(err, project.ErrInvalidRequest):
+		code = "INVALID_REQUEST"
 	case errors.Is(err, sessions.ErrReservedState):
 		code = "WORKSPACE_IMMUTABLE"
 	case errors.Is(err, sessions.ErrInvalidState), errors.Is(err, sessions.ErrStateScope):
@@ -41,7 +47,7 @@ func Error(c *gin.Context, err error) {
 		status, code = http.StatusConflict, "WORKSPACE_UNAVAILABLE"
 	case errors.Is(err, runtime.ErrAppNotFound):
 		status, code = http.StatusNotFound, "APP_NOT_FOUND"
-	case errors.Is(err, projects.ErrNotEmpty):
+	case errors.Is(err, project.ErrNotEmpty):
 		status, code = http.StatusConflict, "PROJECT_NOT_EMPTY"
 	}
 	if code != "" {
@@ -83,7 +89,7 @@ func DecodeJSON(c *gin.Context, dst any, allowEmpty bool) bool {
 }
 
 func projectError(c *gin.Context, err error) bool {
-	var exists *projects.ExistsError
+	var exists *project.ExistsError
 	if errors.As(err, &exists) {
 		c.AbortWithStatusJSON(http.StatusConflict, gin.H{
 			"error": err.Error(), "code": "PROJECT_EXISTS", "details": gin.H{"projectId": exists.ProjectID},
@@ -92,13 +98,13 @@ func projectError(c *gin.Context, err error) bool {
 	}
 	status, code := http.StatusBadRequest, ""
 	switch {
-	case errors.Is(err, projects.ErrNotFound):
+	case errors.Is(err, project.ErrNotFound):
 		status, code = http.StatusNotFound, "PROJECT_NOT_FOUND"
-	case errors.Is(err, projects.ErrInvalidName):
+	case errors.Is(err, project.ErrInvalidName):
 		code = "INVALID_NAME"
-	case errors.Is(err, projects.ErrInvalidDirectory), errors.Is(err, projects.ErrReservedDirectory):
+	case errors.Is(err, project.ErrInvalidDirectory), errors.Is(err, project.ErrReservedDirectory):
 		code = "INVALID_DIRECTORY"
-	case errors.Is(err, projects.ErrDirectoryUnavailable):
+	case errors.Is(err, project.ErrDirectoryUnavailable):
 		status, code = http.StatusConflict, "WORKSPACE_UNAVAILABLE"
 	default:
 		return false

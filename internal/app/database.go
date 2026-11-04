@@ -9,7 +9,8 @@ import (
 	"syscall"
 
 	"github.com/glebarez/sqlite"
-	"github.com/ktsoator/threadmark/internal/projects"
+	"github.com/ktsoator/threadmark/project"
+	projectdatabase "github.com/ktsoator/threadmark/project/database"
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/session/database"
 	"gorm.io/gorm"
@@ -19,7 +20,7 @@ import (
 type storage struct {
 	db       *gorm.DB
 	sessions session.Service
-	projects projects.Service
+	projects project.Service
 	cfg      Config
 	close    func() error
 }
@@ -108,7 +109,7 @@ func openStorage(cfg Config) (_ *storage, retErr error) {
 	if err := database.AutoMigrate(sessions); err != nil {
 		return nil, err
 	}
-	projectService, err := projects.NewDatabaseService(db, root)
+	projectService, err := projectdatabase.NewService(projectdatabase.Config{DB: db, ReservedDirectories: []string{root}})
 	if err != nil {
 		return nil, err
 	}

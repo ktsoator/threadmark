@@ -36,7 +36,7 @@ func (h *Handler) RunSSE(c *gin.Context) {
 	if err := controller.Flush(); err != nil {
 		return
 	}
-	for event, err := range run.events(ctx) {
+	for event, err := range run.Events(ctx) {
 		if err != nil {
 			if ctx.Err() == nil {
 				_ = writeSSE(c.Writer, controller, "error", []byte(`{"error":"Agent execution failed."}`))

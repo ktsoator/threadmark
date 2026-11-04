@@ -4,37 +4,81 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
+	"strings"
 
-	"github.com/ktsoator/threadmark/internal/sessions"
-	"github.com/ktsoator/threadmark/internal/skills"
-	"github.com/ktsoator/threadmark/internal/tools"
+	sessions "github.com/ktsoator/threadmark/session"
+	"github.com/ktsoator/threadmark/skills"
+	"github.com/ktsoator/threadmark/tools"
+	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
+	"google.golang.org/genai"
 )
 
-var ErrAppNotFound = errors.New("Agent application not found.")
+var (
+	ErrAppNotFound    = errors.New("Agent application not found.")
+	ErrInvalidRequest = errors.New("appName, userId, sessionId and newMessage.parts are required.")
+	ErrInvalidParts   = errors.New("Message parts must not be null.")
+)
 
 // Service prepares agent runs using the conversation service's directory and busy gate.
 type Service struct {
 	model    model.LLM
 	store    session.Service
-	sessions *sessions.Service
+	sessions sessions.Service
 }
 
-func NewService(llm model.LLM, store session.Service, conversations *sessions.Service) *Service {
+func NewService(llm model.LLM, store session.Service, conversations sessions.Service) *Service {
 	return &Service{model: llm, store: store, sessions: conversations}
 }
 
-type PreparedRun struct {
-	Runner  *runner.Runner
-	Release func()
+type RunRequest struct {
+	Ref        sessions.Ref
+	NewMessage genai.Content
+	Streaming  bool
+	StateDelta map[string]any
 }
 
-func (s *Service) PrepareRun(ctx context.Context, ref sessions.Ref) (_ *PreparedRun, retErr error) {
+// PreparedRun holds the busy lease from preparation until Release, including event consumption.
+type PreparedRun struct {
+	runner  *runner.Runner
+	request RunRequest
+	release func()
+}
+
+func (r *PreparedRun) Release() { r.release() }
+
+func (r *PreparedRun) Events(ctx context.Context) iter.Seq2[*session.Event, error] {
+	mode := agent.StreamingModeNone
+	if r.request.Streaming {
+		mode = agent.StreamingModeSSE
+	}
+	var options []runner.RunOption
+	if r.request.StateDelta != nil {
+		options = append(options, runner.WithStateDelta(r.request.StateDelta))
+	}
+	return r.runner.Run(ctx, r.request.Ref.UserID, r.request.Ref.SessionID, &r.request.NewMessage, agent.RunConfig{StreamingMode: mode}, options...)
+}
+
+func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (_ *PreparedRun, retErr error) {
+	if req == nil || strings.TrimSpace(req.Ref.AppName) == "" || strings.TrimSpace(req.Ref.UserID) == "" || strings.TrimSpace(req.Ref.SessionID) == "" || len(req.NewMessage.Parts) == 0 {
+		return nil, ErrInvalidRequest
+	}
+	for _, part := range req.NewMessage.Parts {
+		if part == nil {
+			return nil, ErrInvalidParts
+		}
+	}
+	if err := sessions.ValidateState(req.StateDelta); err != nil {
+		return nil, err
+	}
+	ref := req.Ref
 	if ref.AppName != "assistant" {
 		return nil, ErrAppNotFound
 	}
@@ -85,5 +129,7 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 	if err != nil {
 		return nil, err
 	}
-	return &PreparedRun{Runner: r, Release: release}, nil
+	request := *req
+	request.StateDelta = maps.Clone(req.StateDelta)
+	return &PreparedRun{runner: r, request: request, release: release}, nil
 }

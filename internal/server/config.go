@@ -4,17 +4,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/ktsoator/threadmark/internal/projects"
 	"github.com/ktsoator/threadmark/internal/runtime"
-	"github.com/ktsoator/threadmark/internal/sessions"
+	"github.com/ktsoator/threadmark/project"
+	"github.com/ktsoator/threadmark/session"
+	"github.com/ktsoator/threadmark/skills"
 )
 
 // Config supplies shared services and HTTP limits to the Gin server.
 type Config struct {
-	Projects       projects.Service
-	Sessions       *sessions.Service
+	Projects       project.Service
+	Sessions       session.Service
 	Runtime        *runtime.Service
-	DeleteProject  func(context.Context, *projects.DeleteRequest) error
+	DeleteProject  func(context.Context, *project.DeleteRequest) error
+	SkillsFor      func(context.Context, session.DirectoryContext) (*skills.Service, error)
 	BindHost       string
 	AllowedOrigins []string
 	MaxPayloadSize int64

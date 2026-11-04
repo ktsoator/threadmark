@@ -37,4 +37,4 @@ go.work.sum
 # .vscode/
 
 # Generated model catalog snapshots
-/internal/modelcatalog/data/
+/modelcatalog/data/

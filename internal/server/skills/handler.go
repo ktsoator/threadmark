@@ -1,22 +1,23 @@
 package skills
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ktsoator/threadmark/internal/server/httpx"
-	"github.com/ktsoator/threadmark/internal/sessions"
-	"github.com/ktsoator/threadmark/internal/skills"
+	"github.com/ktsoator/threadmark/session"
+	"github.com/ktsoator/threadmark/skills"
 )
 
 type Handler struct {
-	directories skills.DirectoryResolver
+	skillsFor func(context.Context, session.DirectoryContext) (*skills.Service, error)
 }
 
-func New(directories skills.DirectoryResolver) *Handler {
-	return &Handler{directories: directories}
+func New(skillsFor func(context.Context, session.DirectoryContext) (*skills.Service, error)) *Handler {
+	return &Handler{skillsFor: skillsFor}
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -34,8 +35,8 @@ func (h *Handler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, struct {
-		Skills []skills.Summary `json:"skills"`
-	}{Skills: items})
+		Skills []Summary `json:"skills"`
+	}{Skills: fromSummaries(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -52,7 +53,7 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, Detail{Name: item.Name, Description: item.Description, Instructions: item.Instructions})
 }
 
 func writeSkillError(c *gin.Context, err error) {
@@ -68,7 +69,7 @@ func writeSkillError(c *gin.Context, err error) {
 }
 
 func (h *Handler) skillService(c *gin.Context) (*skills.Service, error) {
-	return skills.NewScopedService(c.Request.Context(), h.directories, sessions.DirectoryContext{
+	return h.skillsFor(c.Request.Context(), session.DirectoryContext{
 		AppName: c.Query("appName"), UserID: c.Query("userId"), SessionID: c.Query("sessionId"), ProjectID: c.Query("projectId"),
 	})
 }
