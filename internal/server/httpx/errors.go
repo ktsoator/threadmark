@@ -33,8 +33,6 @@ func Error(c *gin.Context, err error) {
 		code = "INVALID_STATE"
 	case errors.Is(err, sessions.ErrInvalidEvent):
 		code = "INVALID_EVENT"
-	case errors.Is(err, sessions.ErrBusy):
-		status, code = http.StatusConflict, "SESSION_BUSY"
 	case errors.Is(err, sessions.ErrExists):
 		status, code = http.StatusConflict, "SESSION_EXISTS"
 	case errors.Is(err, sessions.ErrInvalidMessage):

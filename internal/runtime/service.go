@@ -27,7 +27,7 @@ var (
 	ErrInvalidParts   = errors.New("Message parts must not be null.")
 )
 
-// Service prepares agent runs using the conversation service's directory and busy gate.
+// Service prepares agent runs using the conversation service's directory.
 type Service struct {
 	model    model.LLM
 	store    session.Service
@@ -45,14 +45,11 @@ type RunRequest struct {
 	StateDelta map[string]any
 }
 
-// PreparedRun holds the busy lease from preparation until Release, including event consumption.
+// PreparedRun holds the configured runner and validated request.
 type PreparedRun struct {
 	runner  *runner.Runner
 	request RunRequest
-	release func()
 }
-
-func (r *PreparedRun) Release() { r.release() }
 
 func (r *PreparedRun) Events(ctx context.Context) iter.Seq2[*session.Event, error] {
 	mode := agent.StreamingModeNone
@@ -66,7 +63,7 @@ func (r *PreparedRun) Events(ctx context.Context) iter.Seq2[*session.Event, erro
 	return r.runner.Run(ctx, r.request.Ref.UserID, r.request.Ref.SessionID, &r.request.NewMessage, agent.RunConfig{StreamingMode: mode}, options...)
 }
 
-func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (_ *PreparedRun, retErr error) {
+func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (*PreparedRun, error) {
 	if req == nil || strings.TrimSpace(req.Ref.AppName) == "" || strings.TrimSpace(req.Ref.UserID) == "" || strings.TrimSpace(req.Ref.SessionID) == "" || len(req.NewMessage.Parts) == 0 {
 		return nil, ErrInvalidRequest
 	}
@@ -82,15 +79,6 @@ func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (_ *PreparedR
 	if ref.AppName != "assistant" {
 		return nil, ErrAppNotFound
 	}
-	release, err := s.sessions.Acquire(ref)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			release()
-		}
-	}()
 	path, err := s.sessions.DirectoryFor(ctx, sessions.DirectoryContext{AppName: ref.AppName, UserID: ref.UserID, SessionID: ref.SessionID})
 	if err != nil {
 		return nil, err
@@ -131,5 +119,5 @@ Report changes and verification accurately. Do not claim an operation succeeded 
 	}
 	request := *req
 	request.StateDelta = maps.Clone(req.StateDelta)
-	return &PreparedRun{runner: r, request: request, release: release}, nil
+	return &PreparedRun{runner: r, request: request}, nil
 }

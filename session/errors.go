@@ -8,7 +8,6 @@ var (
 	ErrInvalidState         = errors.New("State must contain JSON values.")
 	ErrStateScope           = errors.New("State updates may only change session-scoped keys.")
 	ErrInvalidEvent         = errors.New("Initial events must not be null.")
-	ErrBusy                 = errors.New("This conversation is busy. Stop its reply and try again.")
 	ErrExists               = errors.New("A conversation with this ID already exists.")
 	ErrInvalidMessage       = errors.New("Message text is required.")
 	ErrInvalidCleanup       = errors.New("Only an automatically created working folder can be deleted.")

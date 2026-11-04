@@ -17,7 +17,6 @@ func (h *Handler) RunSSE(c *gin.Context) {
 	if !ok {
 		return
 	}
-	defer run.Release()
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
 	controller := streamController(c.Writer)

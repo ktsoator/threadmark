@@ -32,15 +32,12 @@ type Config struct {
 }
 
 // Service coordinates project bindings, directories, and conversation writes over ADK storage.
-// Agent runs use Acquire to share the same busy gate with writes and deletion.
 type Service struct {
 	db          *gorm.DB
 	store       adksession.Service
 	projects    project.Service
 	rootPath    string
 	projectLock sync.Locker
-	busyMu      sync.Mutex
-	busy        map[Ref]bool
 }
 
 // NewService shares the supplied connection and does not close it.
@@ -57,27 +54,11 @@ func NewService(cfg Config) (*Service, error) {
 	if lock == nil {
 		lock = &sync.Mutex{}
 	}
-	return &Service{db: cfg.DB, store: cfg.Store, projects: cfg.Projects, rootPath: root, projectLock: lock, busy: make(map[Ref]bool)}, nil
+	return &Service{db: cfg.DB, store: cfg.Store, projects: cfg.Projects, rootPath: root, projectLock: lock}, nil
 }
 
 func validRef(ref Ref) bool {
 	return ref.AppName != "" && ref.UserID != "" && ref.SessionID != ""
-}
-
-// Acquire holds the conversation busy until the returned release function is called.
-// Runtime uses the same gate as conversation writes and deletion.
-func (s *Service) Acquire(ref Ref) (func(), error) {
-	if !validRef(ref) {
-		return nil, ErrInvalidRequest
-	}
-	s.busyMu.Lock()
-	defer s.busyMu.Unlock()
-	if s.busy[ref] {
-		return nil, ErrBusy
-	}
-	s.busy[ref] = true
-	var once sync.Once
-	return func() { once.Do(func() { s.busyMu.Lock(); delete(s.busy, ref); s.busyMu.Unlock() }) }, nil
 }
 
 func (s *Service) List(ctx context.Context, req *adksession.ListRequest) (*adksession.ListResponse, error) {
@@ -122,11 +103,6 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*adksession.C
 		opts.SessionID = platform.NewUUID(ctx)
 	}
 	ref := Ref{AppName: opts.AppName, UserID: opts.UserID, SessionID: opts.SessionID}
-	release, err := s.Acquire(ref)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
 	if opts.ProjectID != "" {
 		// Keep the project alive until the new session has been committed.
 		s.projectLock.Lock()
@@ -148,14 +124,15 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*adksession.C
 	if opts.ProjectID != "" {
 		opts.State[ProjectIDKey] = opts.ProjectID
 	} else {
-		managedID, err = s.allocateManaged(ref)
+		id, err := s.allocateManaged(ref)
 		if err != nil {
 			return nil, err
 		}
+		managedID = id
 		opts.State[ManagedIDKey] = managedID
 	}
 	var stored adksession.Session
-	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		svc, err := adkdatabase.NewSessionServiceFromDB(tx)
 		if err != nil {
 			return err
@@ -194,11 +171,6 @@ func (s *Service) AppendMessage(ctx context.Context, req *AppendMessageRequest) 
 	if strings.TrimSpace(text) == "" {
 		return nil, ErrInvalidMessage
 	}
-	release, err := s.Acquire(ref)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
 	stored, err := s.get(ctx, ref)
 	if err != nil {
 		return nil, err
@@ -220,11 +192,6 @@ func (s *Service) Update(ctx context.Context, req *UpdateRequest) (adksession.Se
 	if err := ValidateState(delta); err != nil {
 		return nil, err
 	}
-	release, err := s.Acquire(ref)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
 	stored, err := s.get(ctx, ref)
 	if err != nil {
 		return nil, err
@@ -260,11 +227,6 @@ func (s *Service) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRespon
 	}
 	ref := Ref{AppName: req.AppName, UserID: req.UserID, SessionID: req.SessionID}
 	cleanup := req.DeleteDirectory
-	release, err := s.Acquire(ref)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
 	stored, err := s.get(ctx, ref)
 	if errors.Is(err, adksession.ErrNotFound) {
 		return &DeleteResponse{Cleanup: CleanupNotAttempted}, nil
