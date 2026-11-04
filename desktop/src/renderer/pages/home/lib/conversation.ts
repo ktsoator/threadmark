@@ -48,6 +48,7 @@ export type ChatMessage = {
 
 export function sessionTitle(session: AgentSession) {
   return (
+    session.title?.trim() ||
     session.state?.__session_metadata__?.displayName ||
     session.events
       ?.find((event) => event.author === 'user')

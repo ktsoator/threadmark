@@ -1,4 +1,10 @@
-import { Ellipsis, Pencil, Trash2 } from 'lucide-react';
+import {
+  Ellipsis,
+  Pencil,
+  Trash2,
+  MessageSquare,
+  MessagesSquare,
+} from 'lucide-react';
 import { useRef } from 'react';
 import type { AgentSession } from '../../../../shared/agent/types';
 import Button from '../../../components/ui/Button';
@@ -31,6 +37,10 @@ export default function ConversationItem({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const openingDialog = useRef(false);
   const title = sessionTitle(session);
+  const KindIcon =
+    session.state.__session_metadata__?.kind === 'freechat'
+      ? MessagesSquare
+      : MessageSquare;
 
   function openAction(type: ConversationAction['type']) {
     openingDialog.current = true;
@@ -52,6 +62,15 @@ export default function ConversationItem({
         aria-current={active ? 'page' : undefined}
         onClick={() => onSelect(session.id)}
       >
+        <KindIcon
+          size={14}
+          className="shrink-0 text-muted-foreground"
+          aria-label={
+            session.state.__session_metadata__?.kind === 'freechat'
+              ? 'Free chat'
+              : 'Chat'
+          }
+        />
         <span className="truncate">{title}</span>
       </Button>
       <DropdownMenu modal={false}>

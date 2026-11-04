@@ -1,18 +1,28 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { DesktopBridge } from '../shared/desktop';
 import type { AgentBridge } from '../shared/agent/types';
 
 const agent: AgentBridge = {
-  listSkills: () => ipcRenderer.invoke('agent:list-skills'),
-  getSkill: (name) => ipcRenderer.invoke('agent:get-skill', name),
+  listProjects: () => ipcRenderer.invoke('agent:list-projects'),
+  createProject: (options) =>
+    ipcRenderer.invoke('agent:create-project', options),
+  renameProject: (id, name) =>
+    ipcRenderer.invoke('agent:rename-project', id, name),
+  deleteProject: (id) => ipcRenderer.invoke('agent:delete-project', id),
+  listSkills: (context) => ipcRenderer.invoke('agent:list-skills', context),
+  getSkill: (name, context) =>
+    ipcRenderer.invoke('agent:get-skill', name, context),
   listSessions: () => ipcRenderer.invoke('agent:list-sessions'),
   getSession: (id) => ipcRenderer.invoke('agent:get-session', id),
-  createSession: (title, kind) =>
-    ipcRenderer.invoke('agent:create-session', title, kind),
+  createSession: (options) =>
+    ipcRenderer.invoke('agent:create-session', options),
   appendMessage: (id, text) =>
     ipcRenderer.invoke('agent:append-message', id, text),
-  renameSession: (id, title) =>
-    ipcRenderer.invoke('agent:rename-session', id, title),
-  deleteSession: (id) => ipcRenderer.invoke('agent:delete-session', id),
+  generateTitle: (text) => ipcRenderer.invoke('agent:generate-title', text),
+  renameSession: (id, title, source) =>
+    ipcRenderer.invoke('agent:rename-session', id, title, source),
+  deleteSession: (id, cleanup) =>
+    ipcRenderer.invoke('agent:delete-session', id, cleanup),
   run: (requestId, request) =>
     ipcRenderer.invoke('agent:run', requestId, request),
   cancelRun: (requestId) => ipcRenderer.send('agent:cancel', requestId),
@@ -27,3 +37,9 @@ const agent: AgentBridge = {
 };
 
 contextBridge.exposeInMainWorld('agent', agent);
+
+const desktop: DesktopBridge = {
+  selectProjectDirectory: () =>
+    ipcRenderer.invoke('desktop:select-project-directory'),
+};
+contextBridge.exposeInMainWorld('desktop', desktop);

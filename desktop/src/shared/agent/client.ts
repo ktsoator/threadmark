@@ -5,11 +5,34 @@ import type {
   RunRequest,
   SkillDetail,
   SkillSummary,
+  SkillContext,
+  CreateSessionOptions,
+  CreateProjectOptions,
+  Project,
+  DeleteSessionResult,
 } from './types';
+
+import { ServiceError } from './errors';
 
 const appName = 'assistant';
 const userId = 'desktop-user';
 const sessionsPath = `/apps/${appName}/users/${userId}/sessions`;
+
+const projectsPath = `/apps/${appName}/users/${userId}/projects`;
+
+function skillQuery(context?: SkillContext) {
+  if (!context) return '';
+  return (
+    '?' +
+    new URLSearchParams({
+      appName,
+      userId,
+      ...(context.sessionId
+        ? { sessionId: context.sessionId }
+        : { projectId: context.projectId! }),
+    })
+  );
+}
 
 export function createAdkClient(baseURL: string) {
   const base = baseURL.replace(/\/+$/, '');
@@ -31,28 +54,64 @@ export function createAdkClient(baseURL: string) {
     if (!response.ok) {
       const body = (await response.text()).trim();
       let detail = body.slice(0, 400);
+      let code: string | undefined;
+      let details: Record<string, unknown> | undefined;
       try {
         const data = JSON.parse(body);
         if (typeof data.error === 'string') detail = data.error.slice(0, 400);
+        if (typeof data.code === 'string') code = data.code;
+        if (data.details && typeof data.details === 'object')
+          details = data.details;
       } catch {
         // ADK endpoints can return plain-text errors.
       }
-      throw new Error(
-        detail || `The agent service returned HTTP ${response.status}.`,
-      );
+      throw new ServiceError({
+        message:
+          detail || `The agent service returned HTTP ${response.status}.`,
+        code,
+        details,
+      });
     }
     return response;
   }
 
   return {
-    async listSkills(): Promise<SkillSummary[]> {
+    async listProjects(): Promise<Project[]> {
+      return (await request(projectsPath)).json();
+    },
+    async createProject(options: CreateProjectOptions): Promise<Project> {
+      return (
+        await request(projectsPath, {
+          method: 'POST',
+          body: JSON.stringify(options),
+        })
+      ).json();
+    },
+    async renameProject(id: string, name: string): Promise<Project> {
+      return (
+        await request(`${projectsPath}/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ name }),
+        })
+      ).json();
+    },
+    async deleteProject(id: string): Promise<void> {
+      await request(`${projectsPath}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
+    async listSkills(context?: SkillContext): Promise<SkillSummary[]> {
       const data: { skills: SkillSummary[] } = await (
-        await request('/skills')
+        await request('/skills' + skillQuery(context))
       ).json();
       return data.skills;
     },
-    async getSkill(name: string): Promise<SkillDetail> {
-      return (await request(`/skills/${encodeURIComponent(name)}`)).json();
+    async getSkill(name: string, context?: SkillContext): Promise<SkillDetail> {
+      return (
+        await request(
+          `/skills/${encodeURIComponent(name)}${skillQuery(context)}`,
+        )
+      ).json();
     },
     async listSessions(): Promise<AgentSession[]> {
       return (await request(sessionsPath)).json();
@@ -62,15 +121,20 @@ export function createAdkClient(baseURL: string) {
         await request(`${sessionsPath}/${encodeURIComponent(id)}`)
       ).json();
     },
-    async createSession(
-      title: string,
-      kind?: 'freechat',
-    ): Promise<AgentSession> {
+    async createSession({
+      kind,
+      projectId,
+    }: CreateSessionOptions): Promise<AgentSession> {
       return (
         await request(sessionsPath, {
           method: 'POST',
           body: JSON.stringify({
-            state: { __session_metadata__: { displayName: title, kind } },
+            projectId,
+            state: {
+              __session_metadata__: {
+                kind: kind === 'freechat' ? kind : undefined,
+              },
+            },
           }),
         })
       ).json();
@@ -83,30 +147,43 @@ export function createAdkClient(baseURL: string) {
         })
       ).json();
     },
-    async renameSession(id: string, title: string): Promise<AgentSession> {
-      const displayName = title.trim();
-      if (!displayName) throw new Error('Enter a conversation name.');
+    async generateTitle(text: string): Promise<string> {
+      const data: { title: string } = await (
+        await request('/title', {
+          method: 'POST',
+          body: JSON.stringify({ text }),
+          signal: AbortSignal.timeout(20_000),
+        })
+      ).json();
+      const title = data.title?.trim();
+      if (!title) throw new Error('The agent service returned an empty title.');
+      return title;
+    },
+    async renameSession(
+      id: string,
+      title: string,
+      source: 'generated' | 'manual' = 'manual',
+    ): Promise<AgentSession> {
+      title = title.trim();
+      if (!title) throw new Error('Enter a conversation name.');
       const path = `${sessionsPath}/${encodeURIComponent(id)}`;
-      const session: AgentSession = await (await request(path)).json();
       return (
         await request(path, {
           method: 'PATCH',
-          body: JSON.stringify({
-            stateDelta: {
-              // ADK replaces each state key, so preserve the other metadata fields.
-              __session_metadata__: {
-                ...session.state.__session_metadata__,
-                displayName,
-              },
-            },
-          }),
+          body: JSON.stringify({ title, titleSource: source }),
         })
       ).json();
     },
-    async deleteSession(id: string): Promise<void> {
-      await request(`${sessionsPath}/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
+    async deleteSession(
+      id: string,
+      deleteWorkspace = false,
+    ): Promise<DeleteSessionResult> {
+      return (
+        await request(
+          `${sessionsPath}/${encodeURIComponent(id)}?deleteWorkspace=${deleteWorkspace}`,
+          { method: 'DELETE' },
+        )
+      ).json();
     },
     async run(
       { sessionId, text }: RunRequest,

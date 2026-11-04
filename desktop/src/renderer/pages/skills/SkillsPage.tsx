@@ -7,7 +7,7 @@ import {
   Search,
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import type { SkillSummary } from '../../../shared/agent/types';
+import type { SkillSummary, SkillContext } from '../../../shared/agent/types';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import { cn } from '../../lib/cn';
@@ -59,7 +59,13 @@ function SkillItem({
   );
 }
 
-export default function SkillsPage() {
+export default function SkillsPage({
+  context,
+  contextLabel,
+}: {
+  context?: SkillContext;
+  contextLabel: string;
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const returnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -77,7 +83,7 @@ export default function SkillsPage() {
     let current = true;
     setLoading(true);
     setError('');
-    void listSkills()
+    void listSkills(context)
       .then((items) => {
         if (current) setSkills(items);
       })
@@ -97,7 +103,7 @@ export default function SkillsPage() {
     return () => {
       current = false;
     };
-  }, [revision]);
+  }, [context, revision]);
 
   const search = query.trim().toLocaleLowerCase();
   const filtered = skills.filter((skill) =>
@@ -113,25 +119,30 @@ export default function SkillsPage() {
       >
         <div className="@container mx-auto w-full max-w-[52rem]">
           <div className="flex flex-col gap-5 @min-[36rem]:flex-row @min-[36rem]:items-center @min-[36rem]:justify-between">
-            <div className="flex items-center gap-2.5">
-              <h1
-                id="skills-heading"
-                ref={headingRef}
-                tabIndex={-1}
-                className="font-display text-title-small font-medium tracking-[-0.5px] outline-none"
-              >
-                Skills
-              </h1>
-              {!loading && !error && (
-                <span
-                  className="text-ui text-subtle-foreground"
-                  aria-hidden="true"
+            <div>
+              <p className="mb-1 text-caption text-muted-foreground">
+                {contextLabel}
+              </p>
+              <div className="flex items-center gap-2.5">
+                <h1
+                  id="skills-heading"
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="font-display text-title-small font-medium tracking-[-0.5px] outline-none"
                 >
-                  {search
-                    ? `${filtered.length} / ${skills.length}`
-                    : skills.length}
-                </span>
-              )}
+                  Skills
+                </h1>
+                {!loading && !error && (
+                  <span
+                    className="text-ui text-subtle-foreground"
+                    aria-hidden="true"
+                  >
+                    {search
+                      ? `${filtered.length} / ${skills.length}`
+                      : skills.length}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-navigation bg-sidebar px-3 text-muted-foreground focus-within:outline-2 focus-within:outline-accent/30 @min-[36rem]:w-56">
@@ -238,6 +249,7 @@ export default function SkillsPage() {
         <SkillDetailDialog
           key={selectedName}
           name={selectedName}
+          context={context}
           onClose={() => setSelectedName(null)}
           onReturnFocus={() => {
             (returnFocusRef.current ?? headingRef.current)?.focus({
