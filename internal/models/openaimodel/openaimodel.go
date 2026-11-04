@@ -68,7 +68,7 @@ type ClientConfig struct {
 // ErrorMessage instead, which callers treat as a failed turn.
 //
 // It reaches in-process callers, session storage and A2A metadata, but not
-// REST: internal/server/dto maps events field by field and omits CustomMetadata,
+// REST: internal/server/events maps events field by field and omits CustomMetadata,
 // so an HTTP consumer sees the FinishReason alone.
 const FinishMessageKey = "openai_finish_message"
 

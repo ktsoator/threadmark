@@ -1,4 +1,4 @@
-package handler
+package runtime
 
 import (
 	"context"
@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ktsoator/threadmark/internal/server/dto"
+	"github.com/ktsoator/threadmark/internal/server/events"
+	"github.com/ktsoator/threadmark/internal/server/httpx"
 )
 
 func (h *Handler) RunSSE(c *gin.Context) {
@@ -16,6 +17,7 @@ func (h *Handler) RunSSE(c *gin.Context) {
 	if !ok {
 		return
 	}
+	defer run.Release()
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
 	controller := streamController(c.Writer)
@@ -24,7 +26,7 @@ func (h *Handler) RunSSE(c *gin.Context) {
 		deadline = time.Now().Add(h.sseTimeout)
 	}
 	if err := controller.SetWriteDeadline(deadline); err != nil {
-		fail(c, http.StatusInternalServerError, "Could not initialize the response stream.")
+		httpx.Fail(c, http.StatusInternalServerError, "Could not initialize the response stream.")
 		return
 	}
 	c.Header("Content-Type", "text/event-stream; charset=UTF-8")
@@ -45,7 +47,7 @@ func (h *Handler) RunSSE(c *gin.Context) {
 		if event == nil {
 			continue
 		}
-		data, err := json.Marshal(dto.FromSessionEvent(*event))
+		data, err := json.Marshal(events.FromSessionEvent(*event))
 		if err != nil {
 			_ = writeSSE(c.Writer, controller, "error", []byte(`{"error":"Could not encode the agent event."}`))
 			cancel()

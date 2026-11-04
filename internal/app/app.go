@@ -5,28 +5,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
+	"sync"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/ktsoator/threadmark/internal/modelcatalog"
 	"github.com/ktsoator/threadmark/internal/models/openaimodel"
-	"github.com/ktsoator/threadmark/internal/skills"
-	"github.com/ktsoator/threadmark/internal/tools"
-	"google.golang.org/adk/v2/agent"
-	"google.golang.org/adk/v2/agent/llmagent"
-	"google.golang.org/adk/v2/session"
-	"google.golang.org/adk/v2/session/database"
-	"google.golang.org/adk/v2/tool"
-	"google.golang.org/adk/v2/tool/skilltoolset"
+	"github.com/ktsoator/threadmark/internal/projects"
+	"github.com/ktsoator/threadmark/internal/runtime"
+	"github.com/ktsoator/threadmark/internal/sessions"
 )
 
-// App owns the dependencies shared by the agent and HTTP handlers.
+// App assembles services, owns their lifetime, and coordinates project deletion.
 type App struct {
-	AgentLoader    agent.Loader
-	SessionService session.Service
-	SkillService   *skills.Service
+	Projects          projects.Service
+	Sessions          *sessions.Service
+	Runtime           *runtime.Service
+	closeStorage      func() error
+	projectSessionsMu sync.Mutex
 }
+
+func (a *App) Close() error { return a.closeStorage() }
 
 func New(ctx context.Context, cfg Config) (*App, error) {
 	const providerID = "deepseek"
@@ -55,56 +53,17 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		return nil, fmt.Errorf("create model: %w", err)
 	}
 
-	localTools, err := tools.New(cfg.WorkDir)
+	storage, err := openStorage(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("create tools: %w", err)
+		return nil, err
 	}
-
-	skillSource, skillsDirs, err := skills.NewSource(cfg.WorkDir)
-	if err != nil {
-		return nil, fmt.Errorf("discover skills: %w", err)
-	}
-	skillTools, err := skilltoolset.New(ctx, skilltoolset.Config{Source: skills.NewAgentSource(skillSource)})
-	if err != nil {
-		return nil, fmt.Errorf("create skill toolset: %w", err)
-	}
-
-	assistant, err := llmagent.New(llmagent.Config{
-		Name:        "assistant",
-		Model:       model,
-		Description: "A general-purpose assistant that can read, edit, and write files and run Bash commands.",
-		Instruction: fmt.Sprintf(`You are a friendly and accurate general-purpose assistant. Respond concisely in English by default, unless the user requests another language. Clearly state when you are uncertain.
-
-Working directory: %s
-Relative file paths and Bash commands use this directory. Absolute paths are also supported.
-Use read to inspect text files before editing.
-Use edit for targeted changes and write for new files or complete rewrites.
-Use bash to list and search files and to run programs or tests. Each call starts a fresh shell.
-Check tool errors and command exit codes, and use the results to decide what to do next.
-Report changes and verification accurately. Do not claim an operation succeeded unless its tool result confirms it.`, cfg.WorkDir),
-		Tools:                localTools,
-		Toolsets:             []tool.Toolset{skillTools},
-		OnToolErrorCallbacks: []llmagent.OnToolErrorCallback{tools.RecoverError},
+	application := &App{Projects: storage.projects, closeStorage: storage.close}
+	application.Sessions = sessions.NewService(sessions.Config{
+		DB: storage.db, Store: storage.sessions, Projects: storage.projects,
+		DataDir: storage.cfg.DataDir, ProjectSessionsMu: &application.projectSessionsMu,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("create agent: %w", err)
-	}
-	dbPath := filepath.Join(cfg.WorkDir, "threadmark.db")
-	sessionService, err := database.NewSessionService(sqlite.Open(dbPath))
-	if err != nil {
-		return nil, fmt.Errorf("create session database: %w", err)
-	}
-	if err := database.AutoMigrate(sessionService); err != nil {
-		return nil, fmt.Errorf("migrate session database: %w", err)
-	}
-	for _, dir := range skillsDirs {
-		log.Printf("Skills directory: %s", dir)
-	}
-	log.Printf("Session database: %s", dbPath)
+	application.Runtime = runtime.NewService(model, storage.sessions, application.Sessions)
+	log.Printf("Session database: %s", storage.cfg.DBPath)
 	log.Printf("Model: %s. Reasoning effort: %s.", modelInfo.ID, thinking.Effort)
-	return &App{
-		AgentLoader:    agent.NewSingleLoader(assistant),
-		SessionService: sessionService,
-		SkillService:   skills.NewService(skillSource),
-	}, nil
+	return application, nil
 }

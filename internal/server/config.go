@@ -1,18 +1,20 @@
 package server
 
 import (
+	"context"
 	"time"
 
-	"github.com/ktsoator/threadmark/internal/skills"
-	"google.golang.org/adk/v2/agent"
-	"google.golang.org/adk/v2/session"
+	"github.com/ktsoator/threadmark/internal/projects"
+	"github.com/ktsoator/threadmark/internal/runtime"
+	"github.com/ktsoator/threadmark/internal/sessions"
 )
 
 // Config supplies shared services and HTTP limits to the Gin server.
 type Config struct {
-	AgentLoader    agent.Loader
-	SessionService session.Service
-	SkillService   *skills.Service
+	Projects       projects.Service
+	Sessions       *sessions.Service
+	Runtime        *runtime.Service
+	DeleteProject  func(context.Context, *projects.DeleteRequest) error
 	BindHost       string
 	AllowedOrigins []string
 	MaxPayloadSize int64

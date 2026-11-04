@@ -1,4 +1,4 @@
-package dto
+package runtime
 
 import "google.golang.org/genai"
 

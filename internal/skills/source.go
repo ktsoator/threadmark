@@ -19,8 +19,16 @@ func NewSource(cwd string) (*Source, []string, error) {
 
 	var dirs []string
 	var sources []skill.Source
+	seen := make(map[string]bool)
 	for _, root := range []string{cwd, userHome} {
+		if root == "" {
+			continue
+		}
 		dir := filepath.Join(root, ".agents", "skills")
+		if seen[dir] {
+			continue
+		}
+		seen[dir] = true
 
 		info, err := os.Stat(dir)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
