@@ -13,18 +13,22 @@ import (
 )
 
 type editArgs struct {
-	Path  string        `json:"path" jsonschema:"Path to the existing text file, relative or absolute."`
-	Edits []replacement `json:"edits" jsonschema:"One or more replacements matched against the original file. Regions must be unique and non-overlapping. Merge changes to the same block into one replacement."`
+	Path  string        `json:"path" jsonschema:"Path to an existing UTF-8 text file, relative to the working directory or absolute."`
+	Edits []replacement `json:"edits" jsonschema:"One or more replacements, each matched against the original file rather than the result of earlier replacements. Regions must be unique and non-overlapping. Merge changes to the same block into one replacement."`
 }
 
 type replacement struct {
-	OldText string `json:"oldText" jsonschema:"Non-empty exact text to replace. Must occur exactly once in the original file. Line endings are normalized for matching; other whitespace must match."`
+	OldText string `json:"oldText" jsonschema:"Non-empty text copied from the original file, with enough context to match exactly once. Line endings are normalized for matching; all other characters and whitespace must match."`
 	NewText string `json:"newText" jsonschema:"Replacement text. An empty string deletes the matched text."`
 }
 
+const description = `Make targeted replacements in an existing UTF-8 text file. Read the relevant contents first, then batch changes to that file in edits.
+Each oldText must match exactly one non-overlapping region of the original file. Keep matches focused; merge changes to the same block, but do not join distant edits by copying large unchanged regions. If matching fails, read the file again and adjust the text or context.
+All replacements are validated before writing. Preserves the original BOM and line-ending style, and returns diff and firstChangedLine (1-based). Use write for new files or complete rewrites.`
+
 // New creates the edit tool using cwd as its working directory.
 func New(cwd string) (tool.Tool, error) {
-	return toolutil.New("edit", "Make targeted changes to an existing UTF-8 file. Read the file first and batch changes to that file in edits. All oldText values must match unique, non-overlapping regions of the original file; all replacements are validated before writing. Preserves the BOM and original line-ending style. Returns a unified diff and the first changed line (1-based). Use write for new files or complete rewrites.",
+	return toolutil.New("edit", description,
 		func(ctx agent.Context, args editArgs) (toolutil.Result, error) {
 			if len(args.Edits) == 0 {
 				return toolutil.Result{}, fmt.Errorf("edits must contain at least one replacement")
