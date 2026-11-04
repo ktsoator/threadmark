@@ -20,7 +20,7 @@ export default function ConversationActionDialog({
   action: ConversationAction;
   onClose: () => void;
   onRename: (id: string, title: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string, cleanup: boolean) => Promise<void>;
   onReturnFocus: () => void;
 }) {
   const renaming = action.type === 'rename';
@@ -28,6 +28,7 @@ export default function ConversationActionDialog({
   const [title, setTitle] = useState(originalTitle);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [cleanup, setCleanup] = useState(false);
   const pendingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -41,7 +42,7 @@ export default function ConversationActionDialog({
     setError('');
     try {
       if (renaming) await onRename(action.session.id, title.trim());
-      else await onDelete(action.session.id);
+      else await onDelete(action.session.id, cleanup);
       onClose();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Please try again.');
@@ -107,6 +108,28 @@ export default function ConversationActionDialog({
             </span>{' '}
             and its messages will be permanently deleted.
           </p>
+        )}
+        {!renaming && action.session.managedDirectory && (
+          <div className="mt-4 space-y-2 rounded-navigation border border-border bg-sidebar p-3">
+            <label className="flex items-center gap-2 text-ui text-foreground">
+              <input
+                type="checkbox"
+                className="accent-accent"
+                checked={cleanup}
+                onChange={(event) => setCleanup(event.target.checked)}
+                disabled={pending}
+              />
+              Delete workspace files
+            </label>
+            <p className="text-caption text-muted-foreground [overflow-wrap:anywhere]">
+              {action.session.managedDirectory}
+            </p>
+            <p className="text-caption text-muted-foreground">
+              {cleanup
+                ? 'All files in this folder will be permanently deleted.'
+                : 'Keep this folder and its files.'}
+            </p>
+          </div>
         )}
         {error && (
           <p

@@ -1,6 +1,6 @@
 import { MessageSquare, Search } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { AgentSession } from '../../../../shared/agent/types';
+import type { AgentSession, Project } from '../../../../shared/agent/types';
 import Button from '../../../components/ui/Button';
 import Dialog from '../../../components/ui/Dialog';
 import { sessionTitle } from '../lib/conversation';
@@ -9,11 +9,13 @@ export default function SearchDialog({
   open,
   onClose,
   sessions,
+  projects,
   onSelect,
 }: {
   open: boolean;
   onClose: () => void;
   sessions: AgentSession[];
+  projects: Project[];
   onSelect: (id: string) => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -69,7 +71,13 @@ export default function SearchDialog({
                   size={14}
                   className="shrink-0 text-muted-foreground"
                 />
-                <span className="truncate">{sessionTitle(session)}</span>
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {sessionTitle(session)}
+                </span>
+                <span className="max-w-28 truncate text-caption text-muted-foreground">
+                  {projects.find((project) => project.id === session.projectId)
+                    ?.name ?? 'Chats'}
+                </span>
               </Button>
             </li>
           ))}

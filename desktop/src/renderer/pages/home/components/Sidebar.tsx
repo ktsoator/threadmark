@@ -1,63 +1,80 @@
 import {
   BookOpen,
+  MessageSquare,
   MessagesSquare,
   PanelLeftClose,
   Plus,
+  RefreshCw,
   Search,
   SquarePen,
-  RefreshCw,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { AgentSession } from '../../../../shared/agent/types';
 import Button from '../../../components/ui/Button';
 import IconButton from '../../../components/ui/IconButton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/DropdownMenu';
 import { cn } from '../../../lib/cn';
+import type { SessionLibrary } from '../hooks/useSessionLibrary';
 import ConversationActionDialog, {
   type ConversationAction,
 } from './ConversationActionDialog';
 import ConversationItem from './ConversationItem';
-
-type SidebarProps = {
-  open: boolean;
-  onClose: () => void;
-  onNewChat: () => void;
-  onSearch: () => void;
-  onSkills: () => void;
-  skillsActive: boolean;
-  onFreeChat: () => void;
-  freeChatActive: boolean;
-  onNewFreeChat: () => void;
-  sessions: AgentSession[];
-  activeId: string | null;
-  onSelect: (id: string) => void;
-  onRename: (id: string, title: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  historyError: string;
-  onRetry: () => void;
-};
+import ProjectDialog, { type ProjectAction } from './ProjectDialog';
+import ProjectSection from './ProjectSection';
+import SidebarGroup from './SidebarGroup';
 
 export default function Sidebar({
   open,
   onClose,
-  onNewChat,
   onSearch,
-  onSkills,
-  skillsActive,
-  onFreeChat,
-  freeChatActive,
-  onNewFreeChat,
-  sessions,
-  activeId,
+  library,
   onSelect,
-  onRename,
+  onNew,
   onDelete,
-  historyError,
-  onRetry,
-}: SidebarProps) {
+  onSkills,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSearch: () => void;
+  library: SessionLibrary;
+  onSelect: (id: string) => void;
+  onNew: SessionLibrary['newChat'];
+  onDelete: (id: string, cleanup: boolean) => Promise<void>;
+  onSkills: () => void;
+}) {
   const [action, setAction] = useState<ConversationAction | null>(null);
-  const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const newChatRef = useRef<HTMLButtonElement>(null);
-
+  const [projectAction, setProjectAction] = useState<ProjectAction | null>(
+    null,
+  );
+  const actionTrigger = useRef<HTMLButtonElement | null>(null);
+  const newChat = useRef<HTMLButtonElement>(null);
+  const standalone = library.sessions.filter((session) => !session.projectId);
+  const activeId =
+    library.selection.page === 'chat' ? library.target.sessionId : null;
+  const restoreFocus = () => {
+    (actionTrigger.current?.isConnected
+      ? actionTrigger.current
+      : newChat.current
+    )?.focus();
+  };
+  const openAction = (
+    action: ConversationAction,
+    trigger: HTMLButtonElement | null,
+  ) => {
+    actionTrigger.current = trigger;
+    setAction(action);
+  };
+  const openProjectAction = (
+    action: ProjectAction,
+    trigger: HTMLButtonElement | null,
+  ) => {
+    actionTrigger.current = trigger;
+    setProjectAction(action);
+  };
   return (
     <aside
       className={cn(
@@ -68,11 +85,10 @@ export default function Sidebar({
       inert={!open}
     >
       <div className="flex h-full w-[calc(var(--sidebar-width)-1px)] flex-col">
-        <div className="flex h-sidebar-header shrink-0 items-center justify-between pr-3.25 pl-4.5 desktop:pr-2.5 desktop:pl-4 wide:pr-3.25 wide:pl-4.5">
+        <div className="flex h-sidebar-header shrink-0 items-center justify-between pr-3 pl-4.5">
           <a
             className="text-base font-semibold tracking-[-0.5px] text-foreground no-underline wide:text-brand"
             href="#main-content"
-            aria-label="Threadmark home"
           >
             Threadmark
           </a>
@@ -80,107 +96,162 @@ export default function Sidebar({
             <PanelLeftClose size={16} />
           </IconButton>
         </div>
-
         <nav className="grid gap-0.75 px-2.5" aria-label="Main navigation">
           <Button
-            ref={newChatRef}
-            className={cn(
-              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
-              !skillsActive && !freeChatActive && !activeId && 'bg-hover',
-            )}
-            onClick={onNewChat}
+            ref={newChat}
+            className="h-navigation justify-start gap-2.5 px-2.5 text-foreground"
+            onClick={() => onNew(library.target.projectId, 'chat')}
           >
             <SquarePen size={16} />
-            <span>New chat</span>
+            New chat
           </Button>
           <Button
-            className="h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground"
+            className="h-navigation justify-start gap-2.5 px-2.5 text-foreground"
+            onClick={() => onNew(library.target.projectId, 'freechat')}
+          >
+            <MessagesSquare size={16} />
+            New free chat
+          </Button>
+          <Button
+            className="h-navigation justify-start gap-2.5 px-2.5 text-foreground"
             onClick={onSearch}
           >
             <Search size={16} />
-            <span>Search chats</span>
+            Search chats
           </Button>
           <Button
             className={cn(
-              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
-              freeChatActive && 'bg-hover',
-            )}
-            onClick={onFreeChat}
-            aria-current={freeChatActive ? 'page' : undefined}
-          >
-            <MessagesSquare size={16} />
-            <span>Free chat</span>
-          </Button>
-          <Button
-            className={cn(
-              'h-navigation justify-start gap-2.5 rounded-navigation px-2.5 text-foreground',
-              skillsActive && 'bg-hover',
+              'h-navigation justify-start gap-2.5 px-2.5 text-foreground',
+              library.selection.page === 'skills' && 'bg-hover',
             )}
             onClick={onSkills}
-            aria-current={skillsActive ? 'page' : undefined}
+            aria-current={
+              library.selection.page === 'skills' ? 'page' : undefined
+            }
           >
             <BookOpen size={16} />
-            <span>Skills</span>
+            Skills
           </Button>
         </nav>
-
-        {freeChatActive && (
-          <div className="mt-4 flex items-center justify-between pr-3.5 pl-5 text-caption text-muted-foreground">
-            <span>Free chats</span>
-            <IconButton label="New free chat" onClick={onNewFreeChat}>
-              <Plus size={16} />
-            </IconButton>
-          </div>
-        )}
-
-        {historyError && (
+        {library.error && (
           <div
-            className="mx-3 mt-4 flex items-start gap-1 text-caption text-muted-foreground"
             role="status"
+            className="mx-3 mt-3 flex items-start gap-1 text-caption text-error"
           >
-            <span className="flex-1 pt-1">Could not load conversations.</span>
+            <span className="min-w-0 flex-1 pt-1 [overflow-wrap:anywhere]">
+              {library.error}
+            </span>
             <IconButton
               label="Reload conversations"
-              title={historyError}
-              onClick={onRetry}
+              onClick={() => {
+                void library.refresh();
+              }}
             >
               <RefreshCw size={14} />
             </IconButton>
           </div>
         )}
-        <ul
-          className={cn(
-            'min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-4',
-            freeChatActive ? 'pt-1' : 'pt-4',
-          )}
-          aria-label={freeChatActive ? 'Free chats' : 'Conversations'}
-        >
-          {sessions.map((session) => (
-            <ConversationItem
-              key={session.id}
-              session={session}
-              active={!skillsActive && activeId === session.id}
-              onSelect={onSelect}
-              onAction={(next, trigger) => {
-                actionTriggerRef.current = trigger;
-                setAction(next);
-              }}
-            />
-          ))}
-        </ul>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-4">
+          <SidebarGroup
+            label="Projects"
+            action={
+              <IconButton
+                className="size-6"
+                label="Add project"
+                disabled={!library.ready}
+                onClick={(event) =>
+                  openProjectAction({ type: 'create' }, event.currentTarget)
+                }
+              >
+                <Plus size={16} strokeWidth={1.5} />
+              </IconButton>
+            }
+          >
+            <ul className="space-y-1" aria-label="Projects">
+              {library.projects.map((project) => (
+                <ProjectSection
+                  key={project.id}
+                  project={project}
+                  sessions={library.sessions.filter(
+                    (session) => session.projectId === project.id,
+                  )}
+                  expanded={library.expanded.includes(project.id)}
+                  selected={library.target.projectId === project.id}
+                  activeId={activeId}
+                  onToggle={() => library.toggleProject(project.id)}
+                  onNew={(kind) => onNew(project.id, kind)}
+                  onSelect={onSelect}
+                  onAction={openAction}
+                  onProjectAction={openProjectAction}
+                />
+              ))}
+            </ul>
+            {!library.projects.length && library.ready && (
+              <p className="px-2.5 py-2 text-caption leading-5 text-muted-foreground">
+                Add a folder to keep related conversations together.
+              </p>
+            )}
+          </SidebarGroup>
+          <SidebarGroup
+            label="Chats"
+            action={
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <IconButton
+                    className="size-6"
+                    label="New standalone conversation"
+                  >
+                    <Plus size={16} strokeWidth={1.5} />
+                  </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => onNew(null, 'chat')}>
+                    <MessageSquare />
+                    New chat
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onNew(null, 'freechat')}>
+                    <MessagesSquare />
+                    New free chat
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            }
+          >
+            <ul className="space-y-0.5" aria-label="Standalone conversations">
+              {standalone.map((session) => (
+                <ConversationItem
+                  key={session.id}
+                  session={session}
+                  active={session.id === activeId}
+                  onSelect={onSelect}
+                  onAction={openAction}
+                />
+              ))}
+            </ul>
+            {!standalone.length && library.ready && (
+              <p className="px-2.5 py-2 text-caption text-muted-foreground">
+                Your independent chats appear here.
+              </p>
+            )}
+          </SidebarGroup>
+        </div>
       </div>
       {action && (
         <ConversationActionDialog
           key={`${action.type}-${action.session.id}`}
           action={action}
           onClose={() => setAction(null)}
-          onRename={onRename}
+          onRename={library.renameSession}
           onDelete={onDelete}
-          onReturnFocus={() => {
-            const trigger = actionTriggerRef.current;
-            if (trigger?.isConnected) trigger.focus();
-            else newChatRef.current?.focus();
-          }}
+          onReturnFocus={restoreFocus}
+        />
+      )}
+      {projectAction && (
+        <ProjectDialog
+          action={projectAction}
+          library={library}
+          onClose={() => setProjectAction(null)}
+          onReturnFocus={restoreFocus}
         />
       )}
     </aside>

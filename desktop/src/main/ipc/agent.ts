@@ -1,5 +1,6 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { createAdkClient } from '../../shared/agent/client';
+import { errorInfo } from '../../shared/agent/errors';
 import type { RunRequest } from '../../shared/agent/types';
 
 export function registerAgentHandlers() {
@@ -14,41 +15,31 @@ export function registerAgentHandlers() {
     }
   }
 
-  ipcMain.handle('agent:list-skills', (event) => {
-    checkSender(event);
-    return client.listSkills();
-  });
-  ipcMain.handle('agent:get-skill', (event, name: string) => {
-    checkSender(event);
-    return client.getSkill(name);
-  });
-  ipcMain.handle('agent:list-sessions', (event) => {
-    checkSender(event);
-    return client.listSessions();
-  });
-  ipcMain.handle('agent:get-session', (event, id: string) => {
-    checkSender(event);
-    return client.getSession(id);
-  });
-  ipcMain.handle(
-    'agent:create-session',
-    (event, title: string, kind?: 'freechat') => {
+  function handle<A extends unknown[], T>(
+    channel: string,
+    run: (...args: A) => Promise<T>,
+  ) {
+    ipcMain.handle(channel, async (event, ...args: A) => {
       checkSender(event);
-      return client.createSession(title, kind);
-    },
-  );
-  ipcMain.handle('agent:append-message', (event, id: string, text: string) => {
-    checkSender(event);
-    return client.appendMessage(id, text);
-  });
-  ipcMain.handle('agent:rename-session', (event, id: string, title: string) => {
-    checkSender(event);
-    return client.renameSession(id, title);
-  });
-  ipcMain.handle('agent:delete-session', (event, id: string) => {
-    checkSender(event);
-    return client.deleteSession(id);
-  });
+      try {
+        return { ok: true, value: await run(...args) };
+      } catch (error) {
+        return { ok: false, error: errorInfo(error) };
+      }
+    });
+  }
+  handle('agent:list-projects', client.listProjects);
+  handle('agent:create-project', client.createProject);
+  handle('agent:rename-project', client.renameProject);
+  handle('agent:delete-project', client.deleteProject);
+  handle('agent:list-skills', client.listSkills);
+  handle('agent:get-skill', client.getSkill);
+  handle('agent:list-sessions', client.listSessions);
+  handle('agent:get-session', client.getSession);
+  handle('agent:create-session', client.createSession);
+  handle('agent:append-message', client.appendMessage);
+  handle('agent:rename-session', client.renameSession);
+  handle('agent:delete-session', client.deleteSession);
   ipcMain.handle(
     'agent:run',
     async (event, requestId: string, request: RunRequest) => {
@@ -71,14 +62,7 @@ export function registerAgentHandlers() {
         );
         return {};
       } catch (error) {
-        return controller.signal.aborted
-          ? {}
-          : {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'The agent request failed.',
-            };
+        return controller.signal.aborted ? {} : { error: errorInfo(error) };
       } finally {
         runs.delete(key);
         event.sender.removeListener('destroyed', abort);

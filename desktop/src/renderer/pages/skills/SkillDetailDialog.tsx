@@ -1,6 +1,6 @@
 import { LoaderCircle } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
-import type { SkillDetail } from '../../../shared/agent/types';
+import type { SkillDetail, SkillContext } from '../../../shared/agent/types';
 import Button from '../../components/ui/Button';
 import Dialog from '../../components/ui/Dialog';
 import { getSkill } from '../../services/agent';
@@ -9,10 +9,12 @@ const Markdown = lazy(() => import('../../components/markdown/Markdown'));
 
 export default function SkillDetailDialog({
   name,
+  context,
   onClose,
   onReturnFocus,
 }: {
   name: string;
+  context?: SkillContext;
   onClose: () => void;
   onReturnFocus: () => void;
 }) {
@@ -25,7 +27,7 @@ export default function SkillDetailDialog({
     let current = true;
     setLoading(true);
     setError('');
-    void getSkill(name)
+    void getSkill(name, context)
       .then((item) => {
         if (current) setSkill(item);
       })
@@ -45,7 +47,7 @@ export default function SkillDetailDialog({
     return () => {
       current = false;
     };
-  }, [name, revision]);
+  }, [name, context, revision]);
 
   const retry = () => setRevision((value) => value + 1);
 
