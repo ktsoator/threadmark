@@ -2,6 +2,14 @@ package runtime
 
 import "google.golang.org/genai"
 
+type TitleRequest struct {
+	Text string `json:"text"`
+}
+
+type TitleResponse struct {
+	Title string `json:"title"`
+}
+
 type RunRequest struct {
 	AppName    string         `json:"appName"`
 	UserID     string         `json:"userId"`

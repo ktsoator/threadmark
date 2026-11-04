@@ -9,14 +9,16 @@ import (
 )
 
 type Session struct {
-	ID               string         `json:"id"`
-	AppName          string         `json:"appName"`
-	UserID           string         `json:"userId"`
-	LastUpdateTime   int64          `json:"lastUpdateTime"`
-	Events           []events.Event `json:"events"`
-	State            map[string]any `json:"state"`
-	ProjectID        *string        `json:"projectId"`
-	ManagedDirectory *string        `json:"managedDirectory"`
+	ID               string                    `json:"id"`
+	AppName          string                    `json:"appName"`
+	UserID           string                    `json:"userId"`
+	Title            string                    `json:"title"`
+	TitleSource      conversations.TitleSource `json:"titleSource"`
+	LastUpdateTime   int64                     `json:"lastUpdateTime"`
+	Events           []events.Event            `json:"events"`
+	State            map[string]any            `json:"state"`
+	ProjectID        *string                   `json:"projectId"`
+	ManagedDirectory *string                   `json:"managedDirectory"`
 }
 
 type CreateRequest struct {
@@ -26,14 +28,16 @@ type CreateRequest struct {
 }
 
 type UpdateRequest struct {
-	StateDelta map[string]any `json:"stateDelta"`
+	StateDelta  map[string]any            `json:"stateDelta"`
+	Title       *string                   `json:"title"`
+	TitleSource conversations.TitleSource `json:"titleSource"`
 }
 
 type AppendMessageRequest struct {
 	Text string `json:"text"`
 }
 
-func FromSession(stored session.Session, managedDirectory string) Session {
+func FromSession(stored session.Session, managedDirectory string, metadata conversations.Metadata) Session {
 	state := map[string]any{}
 	maps.Insert(state, stored.State().All())
 	history := make([]events.Event, 0, stored.Events().Len())
@@ -48,8 +52,12 @@ func FromSession(stored session.Session, managedDirectory string) Session {
 	if managedDirectory != "" {
 		directory = &managedDirectory
 	}
+	if metadata.TitleSource == "" {
+		metadata.TitleSource = conversations.TitleNone
+	}
 	return Session{
 		ID: stored.ID(), AppName: stored.AppName(), UserID: stored.UserID(),
+		Title: metadata.Title, TitleSource: metadata.TitleSource,
 		LastUpdateTime: stored.LastUpdateTime().Unix(), Events: history, State: state,
 		ProjectID: projectID, ManagedDirectory: directory,
 	}

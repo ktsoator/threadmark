@@ -10,6 +10,8 @@ var (
 	ErrInvalidEvent         = errors.New("Initial events must not be null.")
 	ErrExists               = errors.New("A conversation with this ID already exists.")
 	ErrInvalidMessage       = errors.New("Message text is required.")
+	ErrInvalidTitle         = errors.New("Title must contain between 1 and 120 characters.")
+	ErrInvalidTitleSource   = errors.New("Title source must be generated or manual and requires a title.")
 	ErrInvalidCleanup       = errors.New("Only an automatically created working folder can be deleted.")
 	ErrConflictingContext   = errors.New("Choose either a conversation or a project for skills.")
 	ErrMissingContext       = errors.New("appName and userId are required for project or conversation skills.")

@@ -40,6 +40,7 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 	api.HEAD("/list-apps", listApps)
 	api.POST("/run", runtimeHandler.Run)
 	api.POST("/run_sse", runtimeHandler.RunSSE)
+	api.POST("/title", runtimeHandler.GenerateTitle)
 
 	sessions := api.Group("/apps/:app_name/users/:user_id/sessions")
 	sessions.GET("", sessionHandler.List)

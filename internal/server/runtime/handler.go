@@ -24,6 +24,19 @@ func New(service *agentruntime.Service, sseTimeout time.Duration) *Handler {
 	return &Handler{service: service, sseTimeout: sseTimeout}
 }
 
+func (h *Handler) GenerateTitle(c *gin.Context) {
+	var body TitleRequest
+	if !httpx.DecodeJSON(c, &body, false) {
+		return
+	}
+	title, err := h.service.GenerateTitle(c.Request.Context(), body.Text)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, TitleResponse{Title: title})
+}
+
 func (h *Handler) Run(c *gin.Context) {
 	run, ok := h.prepareRun(c)
 	if !ok {

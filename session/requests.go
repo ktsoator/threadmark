@@ -19,6 +19,9 @@ type CreateRequest struct {
 type UpdateRequest struct {
 	Ref
 	StateDelta map[string]any
+	Title      *string
+	// TitleSource defaults to manual. Generated titles only fill an unnamed conversation.
+	TitleSource TitleSource
 }
 
 type AppendMessageRequest struct {

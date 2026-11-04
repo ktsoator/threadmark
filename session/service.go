@@ -40,7 +40,7 @@ type Service struct {
 	projectLock sync.Locker
 }
 
-// NewService shares the supplied connection and does not close it.
+// NewService initializes the metadata table on the supplied connection and does not close it.
 // The managed root must already exist. Default locations and directory creation belong to the caller.
 func NewService(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Store == nil || cfg.Projects == nil {
@@ -49,6 +49,9 @@ func NewService(cfg Config) (*Service, error) {
 	root, err := project.NormalizeDirectory(cfg.ManagedRoot)
 	if err != nil {
 		return nil, fmt.Errorf("managed directory root: %w", err)
+	}
+	if err := cfg.DB.AutoMigrate(&storedMetadata{}); err != nil {
+		return nil, err
 	}
 	lock := cfg.ProjectLock
 	if lock == nil {
@@ -142,6 +145,9 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*adksession.C
 			return err
 		}
 		stored = result.Session
+		if err := tx.Create(&storedMetadata{AppName: ref.AppName, UserID: ref.UserID, SessionID: ref.SessionID, Metadata: Metadata{TitleSource: TitleNone}}).Error; err != nil {
+			return err
+		}
 		for _, event := range opts.Events {
 			if event.Timestamp.IsZero() {
 				event.Timestamp = platform.Now(ctx)
@@ -192,6 +198,21 @@ func (s *Service) Update(ctx context.Context, req *UpdateRequest) (adksession.Se
 	if err := ValidateState(delta); err != nil {
 		return nil, err
 	}
+	var title string
+	titleSource := req.TitleSource
+	if titleSource != "" && (req.Title == nil || (titleSource != TitleManual && titleSource != TitleGenerated)) {
+		return nil, ErrInvalidTitleSource
+	}
+	if titleSource == "" {
+		titleSource = TitleManual
+	}
+	if req.Title != nil {
+		var err error
+		title, err = validTitle(*req.Title)
+		if err != nil {
+			return nil, err
+		}
+	}
 	stored, err := s.get(ctx, ref)
 	if err != nil {
 		return nil, err
@@ -210,11 +231,37 @@ func (s *Service) Update(ctx context.Context, req *UpdateRequest) (adksession.Se
 		}
 		return nil, ErrStateScope
 	}
-	if len(delta) > 0 {
-		event := adksession.NewEvent(ctx, platform.NewUUID(ctx))
-		event.Author = "user"
-		event.Actions.StateDelta = delta
-		if err := s.store.AppendEvent(ctx, stored, event); err != nil {
+	if len(delta) > 0 || req.Title != nil {
+		err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if len(delta) > 0 {
+				svc, err := adkdatabase.NewSessionServiceFromDB(tx)
+				if err != nil {
+					return err
+				}
+				event := adksession.NewEvent(ctx, platform.NewUUID(ctx))
+				event.Author = "user"
+				event.Actions.StateDelta = delta
+				if err := svc.AppendEvent(ctx, stored, event); err != nil {
+					return err
+				}
+			}
+			if req.Title != nil {
+				query := tx.Model(&storedMetadata{}).
+					Where("app_name = ? AND user_id = ? AND session_id = ?", ref.AppName, ref.UserID, ref.SessionID)
+				if titleSource == TitleGenerated {
+					query = query.Where("title_source = ?", TitleNone)
+				}
+				result := query.Updates(map[string]any{"title": title, "title_source": titleSource})
+				if result.Error != nil {
+					return result.Error
+				}
+				if result.RowsAffected == 0 && titleSource == TitleManual {
+					return adksession.ErrNotFound
+				}
+			}
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -238,7 +285,17 @@ func (s *Service) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRespon
 	if cleanup && directory == "" {
 		return nil, ErrInvalidCleanup
 	}
-	if err := s.store.Delete(ctx, &req.DeleteRequest); err != nil {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		svc, err := adkdatabase.NewSessionServiceFromDB(tx)
+		if err != nil {
+			return err
+		}
+		if err := svc.Delete(ctx, &req.DeleteRequest); err != nil {
+			return err
+		}
+		return tx.Where("app_name = ? AND user_id = ? AND session_id = ?", ref.AppName, ref.UserID, ref.SessionID).Delete(&storedMetadata{}).Error
+	})
+	if err != nil {
 		return nil, err
 	}
 	out := &DeleteResponse{Cleanup: CleanupNotApplicable}

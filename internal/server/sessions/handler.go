@@ -21,14 +21,20 @@ func New(service *conversations.Service) *Handler {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	items, err := h.service.List(c.Request.Context(), &session.ListRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id")})
+	req := &session.ListRequest{AppName: c.Param("app_name"), UserID: c.Param("user_id")}
+	items, err := h.service.List(c.Request.Context(), req)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	metadata, err := h.service.ListMetadata(c.Request.Context(), req)
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
 	result := make([]Session, 0, len(items.Sessions))
 	for _, item := range items.Sessions {
-		result = append(result, FromSession(item, h.service.ManagedDirectory(item)))
+		result = append(result, FromSession(item, h.service.ManagedDirectory(item), metadata[item.ID()]))
 	}
 	c.JSON(http.StatusOK, result)
 }
@@ -52,7 +58,7 @@ func (h *Handler) Create(c *gin.Context) {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
+	h.respond(c, stored.Session)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -61,7 +67,7 @@ func (h *Handler) Get(c *gin.Context) {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored.Session, h.service.ManagedDirectory(stored.Session)))
+	h.respond(c, stored.Session)
 }
 
 // AppendMessage records a user message without starting an agent invocation.
@@ -75,7 +81,7 @@ func (h *Handler) AppendMessage(c *gin.Context) {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	h.respond(c, stored)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -83,12 +89,21 @@ func (h *Handler) Update(c *gin.Context) {
 	if !httpx.DecodeJSON(c, &body, true) {
 		return
 	}
-	stored, err := h.service.Update(c.Request.Context(), &conversations.UpdateRequest{Ref: sessionRef(c), StateDelta: body.StateDelta})
+	stored, err := h.service.Update(c.Request.Context(), &conversations.UpdateRequest{Ref: sessionRef(c), StateDelta: body.StateDelta, Title: body.Title, TitleSource: body.TitleSource})
 	if err != nil {
 		httpx.Error(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored)))
+	h.respond(c, stored)
+}
+
+func (h *Handler) respond(c *gin.Context, stored session.Session) {
+	metadata, err := h.service.GetMetadata(c.Request.Context(), &session.GetRequest{AppName: stored.AppName(), UserID: stored.UserID(), SessionID: stored.ID()})
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, FromSession(stored, h.service.ManagedDirectory(stored), *metadata))
 }
 
 func (h *Handler) Delete(c *gin.Context) {

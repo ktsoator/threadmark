@@ -37,6 +37,8 @@ func Error(c *gin.Context, err error) {
 		status, code = http.StatusConflict, "SESSION_EXISTS"
 	case errors.Is(err, sessions.ErrInvalidMessage):
 		code = "INVALID_MESSAGE"
+	case errors.Is(err, sessions.ErrInvalidTitle), errors.Is(err, sessions.ErrInvalidTitleSource):
+		code = "INVALID_TITLE"
 	case errors.Is(err, sessions.ErrInvalidCleanup):
 		code = "INVALID_CLEANUP"
 	case errors.Is(err, sessions.ErrConflictingContext), errors.Is(err, sessions.ErrMissingContext):
