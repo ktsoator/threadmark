@@ -8,6 +8,7 @@ export type MessageBlock =
       id: string;
       name: string;
       args?: Record<string, unknown>;
+      result?: Record<string, unknown>;
       status: 'running' | 'done' | 'error' | 'stopped';
     };
 
@@ -186,9 +187,17 @@ export function appendEvent(
     if (index !== -1) {
       const block = message.blocks[index];
       if (block.type === 'tool') {
+        const result = response.response;
+        const failed =
+          !!result?.error ||
+          (block.name === 'bash' &&
+            typeof result?.exitCode === 'number' &&
+            Number.isSafeInteger(result.exitCode) &&
+            result.exitCode !== 0);
         message.blocks[index] = {
           ...block,
-          status: response.response?.error ? 'error' : 'done',
+          result,
+          status: failed ? 'error' : 'done',
         };
       }
     }
