@@ -15,6 +15,7 @@ type Config struct {
 	Projects       project.Service
 	Sessions       *session.Service
 	Runtime        *runtime.Service
+	Models         *runtime.ModelList
 	DeleteProject  func(context.Context, *project.DeleteRequest) error
 	SkillsFor      func(context.Context, session.DirectoryContext) (*skills.Service, error)
 	BindHost       string

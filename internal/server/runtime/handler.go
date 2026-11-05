@@ -29,7 +29,7 @@ func (h *Handler) GenerateTitle(c *gin.Context) {
 	if !httpx.DecodeJSON(c, &body, false) {
 		return
 	}
-	title, err := h.service.GenerateTitle(c.Request.Context(), body.Text)
+	title, err := h.service.GenerateTitle(c.Request.Context(), body.Text, body.Model)
 	if err != nil {
 		httpx.Error(c, err)
 		return
@@ -66,6 +66,7 @@ func (h *Handler) prepareRun(c *gin.Context) (*agentruntime.PreparedRun, bool) {
 	run, err := h.service.PrepareRun(c.Request.Context(), &agentruntime.RunRequest{
 		Ref:        session.Ref{AppName: body.AppName, UserID: body.UserID, SessionID: body.SessionID},
 		NewMessage: body.NewMessage, Streaming: body.Streaming, StateDelta: body.StateDelta,
+		Model: body.Model,
 	})
 	if err != nil {
 		httpx.Error(c, err)
