@@ -14,7 +14,7 @@ import type {
   ModelSelection,
 } from './types';
 
-import { ServiceError } from './errors';
+import { errorInfo, interruptedStream, ServiceError } from './errors';
 
 const appName = 'assistant';
 const userId = 'desktop-user';
@@ -49,8 +49,13 @@ export function createAdkClient(baseURL: string) {
       });
     } catch (error) {
       if (init.signal?.aborted) throw error;
-      throw new Error(
-        'Cannot reach the agent service. Check that it is running on port 8090.',
+      throw new ServiceError(
+        {
+          code: 'SERVICE_UNAVAILABLE',
+          message:
+            'Cannot reach the agent service. Check that it is running on port 8090.',
+        },
+        { cause: error },
       );
     }
     if (!response.ok) {
@@ -217,44 +222,55 @@ export function createAdkClient(baseURL: string) {
         throw new Error('The agent service did not return a message stream.');
       }
 
-      let received = false;
-      let partial = false;
+      let completed = false;
       const parser = createParser({
         onEvent(message) {
+          if (completed) return;
+          if (message.event === 'done') {
+            completed = true;
+            return;
+          }
           if (message.data === '[DONE]') return;
-          const event: AgentEvent & { error?: string } = JSON.parse(
-            message.data,
-          );
+          const event: AgentEvent & { error?: string; code?: string } =
+            JSON.parse(message.data);
           if (
             message.event === 'error' ||
             event.error ||
             event.errorCode ||
             event.errorMessage
           ) {
-            throw new Error(
-              event.error ||
+            throw new ServiceError({
+              message:
+                event.error ||
                 event.errorMessage ||
                 event.errorCode ||
                 'The agent could not finish its reply.',
-            );
+              code: event.code || event.errorCode || 'RUN_FAILED',
+            });
           }
-          received = true;
-          partial = event.partial === true;
           onEvent(event);
         },
       });
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       try {
-        while (true) {
+        while (!completed) {
           const { value, done } = await reader.read();
           if (done) break;
           parser.feed(decoder.decode(value, { stream: true }));
         }
         parser.feed(decoder.decode());
-        if (!received || partial) {
-          throw new Error('The connection closed before the reply finished.');
-        }
+        signal.throwIfAborted();
+        if (!completed) throw interruptedStream();
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const failure =
+          error instanceof ServiceError ? error : interruptedStream(error);
+        console.error('Agent stream failed', {
+          sessionId,
+          ...errorInfo(failure),
+        });
+        throw failure;
       } finally {
         await reader.cancel().catch(() => {});
         reader.releaseLock();
