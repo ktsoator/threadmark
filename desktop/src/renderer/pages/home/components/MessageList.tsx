@@ -9,10 +9,51 @@ import {
 } from 'react';
 import CopyButton from '../../../components/ui/CopyButton';
 import IconButton from '../../../components/ui/IconButton';
-import { type ChatMessage, messageSections } from '../lib/conversation';
+import { type ChatMessage, messageContent } from '../lib/conversation';
 import WorkBlock from './WorkBlock';
 
 const Markdown = lazy(() => import('../../../components/markdown/Markdown'));
+
+function AssistantMessage({
+  message,
+  active,
+  onToggle,
+}: {
+  message: ChatMessage;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  const { work, reply } = messageContent(message, active);
+  return (
+    <>
+      <div className="space-y-4">
+        {!!work.length && (
+          <WorkBlock blocks={work} active={active} onToggle={onToggle} />
+        )}
+        {reply.map((block, index) => (
+          <Suspense
+            key={index}
+            fallback={
+              <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {block.text}
+              </div>
+            }
+          >
+            <Markdown text={block.text} streaming={block.streaming} />
+          </Suspense>
+        ))}
+      </div>
+      {!!reply.length && (
+        <div className="mt-2 -ml-1.5">
+          <CopyButton
+            label="Copy response"
+            text={reply.map((block) => block.text).join('\n\n')}
+          />
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function MessageList({
   messages,
@@ -30,14 +71,8 @@ export default function MessageList({
   const following = useRef(true);
   const [showScroll, setShowScroll] = useState(false);
   const last = messages.at(-1);
-  const lastSection = messageSections(last?.blocks ?? []).at(-1);
   const working =
-    last?.role === 'assistant' &&
-    lastSection?.type === 'activity' &&
-    (lastSection.blocks.length > 1 ||
-      lastSection.blocks.some((block) =>
-        block.type === 'thought' ? block.streaming : block.status === 'running',
-      ));
+    last?.role === 'assistant' && messageContent(last, true).work.length > 0;
   const userMessageCount = messages.filter(
     (message) => message.role === 'user',
   ).length;
@@ -113,58 +148,14 @@ export default function MessageList({
                       )}
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-4">
-                        {messageSections(message.blocks).map(
-                          (section, index, sections) =>
-                            section.type === 'text' ? (
-                              <Suspense
-                                key={section.index}
-                                fallback={
-                                  <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
-                                    {section.block.text}
-                                  </div>
-                                }
-                              >
-                                <Markdown
-                                  text={section.block.text}
-                                  streaming={section.block.streaming}
-                                />
-                              </Suspense>
-                            ) : (
-                              <WorkBlock
-                                key={section.index}
-                                blocks={section.blocks}
-                                onToggle={() => {
-                                  // Keep the clicked heading in place as its content expands.
-                                  following.current = false;
-                                }}
-                                active={
-                                  busy &&
-                                  message === last &&
-                                  index === sections.length - 1
-                                }
-                              />
-                            ),
-                        )}
-                      </div>
-                      {!(busy && message === last) &&
-                        message.blocks.some(
-                          (block) => block.type === 'text' && block.text,
-                        ) && (
-                          <div className="mt-2 -ml-1.5">
-                            <CopyButton
-                              label="Copy response"
-                              text={message.blocks
-                                .map((block) =>
-                                  block.type === 'text' ? block.text : '',
-                                )
-                                .filter(Boolean)
-                                .join('\n\n')}
-                            />
-                          </div>
-                        )}
-                    </>
+                    <AssistantMessage
+                      message={message}
+                      active={busy && message === last}
+                      onToggle={() => {
+                        // Keep the clicked heading in place as its content expands.
+                        following.current = false;
+                      }}
+                    />
                   )}
                 </article>
               ))}

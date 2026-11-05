@@ -14,38 +14,33 @@ export type MessageBlock =
 
 export type ActivityBlock = Exclude<MessageBlock, { type: 'text' }>;
 
-type MessageSection =
-  | {
-      type: 'text';
-      index: number;
-      block: Extract<MessageBlock, { type: 'text' }>;
-    }
-  | { type: 'activity'; index: number; blocks: ActivityBlock[] };
-
-// Only visible assistant prose separates consecutive thoughts and tool calls.
-export function messageSections(blocks: MessageBlock[]): MessageSection[] {
-  const sections: MessageSection[] = [];
-  blocks.forEach((block, index) => {
-    if (block.type !== 'tool' && !block.text.trim()) return;
-    if (block.type === 'text') {
-      sections.push({ type: 'text', index, block });
-    } else {
-      const previous = sections.at(-1);
-      if (previous?.type === 'activity') previous.blocks.push(block);
-      else sections.push({ type: 'activity', index, blocks: [block] });
-    }
-  });
-  return sections;
-}
-
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   invocationId?: string;
   // The current model response can stream several thought and text blocks.
   streamingStart?: number;
+  // Only a complete response without tool calls can become the final reply.
+  replyStart?: number;
   blocks: MessageBlock[];
 };
+
+export function messageContent(message: ChatMessage, active = false) {
+  const work: MessageBlock[] = [];
+  const reply: Extract<MessageBlock, { type: 'text' }>[] = [];
+  message.blocks.forEach((block, index) => {
+    if (block.type !== 'tool' && !block.text.trim()) return;
+    if (
+      !active &&
+      message.replyStart !== undefined &&
+      index >= message.replyStart &&
+      block.type === 'text'
+    )
+      reply.push(block);
+    else work.push(block);
+  });
+  return { work, reply };
+}
 
 export function sessionTitle(session: AgentSession) {
   return (
@@ -175,6 +170,15 @@ export function appendEvent(
         status: 'running',
       });
     }
+  }
+  if (!responses.length) {
+    const response = message.blocks.slice(responseStart);
+    message.replyStart =
+      !event.partial &&
+      !response.some((block) => block.type === 'tool') &&
+      response.some((block) => block.type === 'text' && block.text.trim())
+        ? responseStart
+        : undefined;
   }
   for (const response of responses) {
     const index = message.blocks.findLastIndex(
