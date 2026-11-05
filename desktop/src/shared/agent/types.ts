@@ -39,7 +39,33 @@ export type AgentSession = {
   };
 };
 
-export type RunRequest = { sessionId: string; text: string };
+export type ModelSelection = {
+  providerId: string;
+  modelId: string;
+  thinking?: { enabled?: boolean; effort?: string };
+};
+
+export type ModelOption = {
+  id: string;
+  name: string;
+  reasoningOptions: {
+    type: string;
+    values?: string[];
+    min?: number;
+    max?: number;
+  }[];
+};
+
+export type ModelList = {
+  defaultSelection: ModelSelection;
+  providers: { id: string; name: string; models: ModelOption[] }[];
+};
+
+export type RunRequest = {
+  sessionId: string;
+  text: string;
+  model?: ModelSelection;
+};
 
 export type SkillSummary = {
   name: string;
@@ -88,6 +114,7 @@ export type IPCResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: ServiceErrorInfo };
 export type AgentAPI = {
+  listModels: () => Promise<ModelList>;
   listProjects: () => Promise<Project[]>;
   createProject: (options: CreateProjectOptions) => Promise<Project>;
   renameProject: (id: string, name: string) => Promise<Project>;
@@ -98,7 +125,7 @@ export type AgentAPI = {
   getSession: (id: string) => Promise<AgentSession>;
   createSession: (options: CreateSessionOptions) => Promise<AgentSession>;
   appendMessage: (id: string, text: string) => Promise<AgentSession>;
-  generateTitle: (text: string) => Promise<string>;
+  generateTitle: (text: string, model?: ModelSelection) => Promise<string>;
   renameSession: (
     id: string,
     title: string,

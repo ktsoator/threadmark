@@ -1,6 +1,7 @@
 import { ArrowUp, Plus, Square } from 'lucide-react';
 import { useLayoutEffect, type ReactNode, type RefObject } from 'react';
 import IconButton from '../../../components/ui/IconButton';
+import { cn } from '../../../lib/cn';
 
 type PromptComposerProps = {
   inputRef?: RefObject<HTMLTextAreaElement | null>;
@@ -13,6 +14,8 @@ type PromptComposerProps = {
   submitLabel?: string;
   leadingAction?: ReactNode;
   editor?: ReactNode;
+  modelSelector?: ReactNode;
+  compact?: boolean;
 };
 
 export default function PromptComposer({
@@ -26,6 +29,8 @@ export default function PromptComposer({
   submitLabel = 'Send message',
   leadingAction,
   editor,
+  modelSelector,
+  compact = false,
 }: PromptComposerProps) {
   const canSend = value.trim().length > 0 && !busy && !disabled;
 
@@ -39,27 +44,22 @@ export default function PromptComposer({
 
   return (
     <form
-      className="rounded-composer border border-input-border bg-background p-1.75 transition-colors duration-150 focus-within:border-focus-border"
+      className={cn(
+        'rounded-composer border border-input-border bg-background p-1.75 transition-colors duration-150 has-[textarea:focus]:border-focus-border has-[[contenteditable]:focus]:border-focus-border',
+        compact && 'flex items-end gap-1.5',
+      )}
       aria-label="Message composer"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSend) onSubmit();
       }}
     >
-      <div className="flex items-end gap-1.5">
-        {leadingAction === undefined ? (
-          <IconButton
-            size="md"
-            className="text-subtle-foreground"
-            label="Attach files"
-            title="File attachments are not available yet"
-            disabled
-          >
-            <Plus size={19} strokeWidth={1.7} />
-          </IconButton>
-        ) : (
-          leadingAction
+      <div
+        className={cn(
+          'flex items-end',
+          compact ? 'min-w-0 flex-1' : 'px-2 py-1',
         )}
+      >
         {editor ?? (
           <>
             <label className="sr-only" htmlFor="message-input">
@@ -87,6 +87,27 @@ export default function PromptComposer({
             />
           </>
         )}
+      </div>
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-1.5',
+          compact ? 'shrink-0' : 'mt-1',
+        )}
+      >
+        {leadingAction === undefined ? (
+          <IconButton
+            size="md"
+            className="text-subtle-foreground"
+            label="Attach files"
+            title="File attachments are not available yet"
+            disabled
+          >
+            <Plus size={19} strokeWidth={1.7} />
+          </IconButton>
+        ) : (
+          leadingAction
+        )}
+        <div className="ml-auto min-w-0">{modelSelector}</div>
         {busy ? (
           <IconButton
             size="md"

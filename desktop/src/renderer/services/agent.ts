@@ -7,6 +7,7 @@ import type {
   IPCResult,
   RunRequest,
   SkillContext,
+  ModelSelection,
 } from '../../shared/agent/types';
 
 const browserClient = createAdkClient('/api');
@@ -21,6 +22,8 @@ function request<T>(
     return result.value;
   });
 }
+export const listModels = () =>
+  request(window.agent?.listModels(), () => browserClient.listModels());
 export const listProjects = () =>
   request(window.agent?.listProjects(), () => browserClient.listProjects());
 export const createProject = (options: CreateProjectOptions) =>
@@ -55,9 +58,9 @@ export const appendMessage = (id: string, text: string) =>
   request(window.agent?.appendMessage(id, text), () =>
     browserClient.appendMessage(id, text),
   );
-export const generateTitle = (text: string) =>
-  request(window.agent?.generateTitle(text), () =>
-    browserClient.generateTitle(text),
+export const generateTitle = (text: string, model?: ModelSelection) =>
+  request(window.agent?.generateTitle(text, model), () =>
+    browserClient.generateTitle(text, model),
   );
 export const renameSession = (
   id: string,

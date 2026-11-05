@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChatKind } from '../../../../shared/agent/types';
+import type { ChatKind, ModelSelection } from '../../../../shared/agent/types';
 import * as agent from '../../../services/agent';
 import {
   appendEvent,
@@ -36,6 +36,8 @@ export default function useChat(
   library: SessionLibrary,
   kind: ChatKind,
   shouldReply: (text: string) => boolean,
+  selection: ModelSelection | null | ((text: string) => ModelSelection | null),
+  textForTitle: (text: string) => string = (text) => text,
 ) {
   const target = library.target.kind === kind ? library.target : null;
   const key = target ? (target.sessionId ?? draftKey(target)) : 'inactive';
@@ -129,6 +131,22 @@ export default function useChat(
       return;
     const text = chat.draft.trim();
     if (!text) return;
+    let model: ModelSelection | undefined;
+    try {
+      const selected =
+        typeof selection === 'function' ? selection(text) : selection;
+      model = selected ? structuredClone(selected) : undefined;
+    } catch (error) {
+      update(key, (item) => ({ ...item, error: message(error) }));
+      return;
+    }
+    if (shouldReply(text) && !model) {
+      update(key, (item) => ({
+        ...item,
+        error: 'Choose an available model before sending.',
+      }));
+      return;
+    }
     const originalDraft = chat.draft;
     const expectedSelection = library.selection;
     let requestKey = key;
@@ -149,7 +167,9 @@ export default function useChat(
     try {
       if (!id) {
         const session = await library.createSession({
-          title: Array.from(text.replace(/\s+/g, ' ')).slice(0, 60).join(''),
+          title: Array.from(textForTitle(text).replace(/\s+/g, ' '))
+            .slice(0, 60)
+            .join(''),
           kind,
           projectId: target.projectId ?? undefined,
         });
@@ -174,8 +194,8 @@ export default function useChat(
         library.adoptCreated(session, expectedSelection);
       }
       controller.signal.throwIfAborted();
-      if (!chat.messages.some((item) => item.role === 'user'))
-        void library.generateTitle(id, text);
+      if (model && !chat.messages.some((item) => item.role === 'user'))
+        void library.generateTitle(id, textForTitle(text), model);
       if (!shouldReply(text)) {
         const session = await agent.appendMessage(id, text);
         saved = true;
@@ -200,7 +220,7 @@ export default function useChat(
           }),
         }));
         await agent.runAgent(
-          { sessionId: id, text },
+          { sessionId: id, text, model },
           (event) => {
             if (isCurrent() && event.author !== 'user')
               update(requestKey, (item) => ({

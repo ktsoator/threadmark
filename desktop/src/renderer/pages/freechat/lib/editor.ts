@@ -1,6 +1,5 @@
 import { findModelMentions } from './mention';
 import { modelMentionClassName } from '../components/ModelMention';
-import { models } from './models';
 
 export type EditorSelection = { anchor: number; focus: number };
 
@@ -83,23 +82,28 @@ export function renderEditor(editor: HTMLElement, text: string) {
   const fragment = document.createDocumentFragment();
   let cursor = 0;
   for (const mention of findModelMentions(text)) {
-    const model = models.find((item) => item.id === mention.modelId);
-    if (!model) continue;
+    const { model } = mention;
     fragment.append(document.createTextNode(text.slice(cursor, mention.start)));
     const token = document.createElement('span');
     token.contentEditable = 'false';
     token.dataset.mention = text.slice(mention.start, mention.end);
     token.className = modelMentionClassName;
+    token.title = model.name;
     const at = document.createElement('span');
     at.textContent = '@';
-    const icon = document.createElement('img');
-    icon.src = model.logo;
-    icon.alt = '';
-    icon.draggable = false;
-    icon.className = 'size-4 shrink-0 self-center object-contain';
+    token.append(at);
+    if (model.logo) {
+      const icon = document.createElement('img');
+      icon.src = model.logo;
+      icon.alt = '';
+      icon.draggable = false;
+      icon.className = 'size-4 shrink-0 self-center object-contain';
+      token.append(icon);
+    }
     const label = document.createElement('span');
+    label.className = 'truncate';
     label.textContent = model.name;
-    token.append(at, icon, label);
+    token.append(label);
     fragment.append(token);
     cursor = mention.end;
   }

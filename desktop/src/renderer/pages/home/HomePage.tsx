@@ -8,10 +8,12 @@ import FreeChatPage from '../freechat/FreeChatPage';
 import useFreeChat from '../freechat/hooks/useFreeChat';
 import SkillsPage from '../skills/SkillsPage';
 import MessageList from './components/MessageList';
+import ModelMenu from './components/ModelMenu';
 import PromptComposer from './components/PromptComposer';
 import SearchDialog from './components/SearchDialog';
 import Sidebar from './components/Sidebar';
 import useConversation from './hooks/useConversation';
+import useModels from './hooks/useModels';
 import useSessionLibrary from './hooks/useSessionLibrary';
 import { sessionTitle } from './lib/conversation';
 
@@ -28,8 +30,9 @@ export default function HomePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const library = useSessionLibrary();
-  const chat = useConversation(library);
-  const freeChat = useFreeChat(library);
+  const models = useModels();
+  const chat = useConversation(library, models.selection);
+  const freeChat = useFreeChat(library, models.catalog);
   const { target, activeSession } = library;
   const skillsActive = library.selection.page === 'skills';
   const project = library.projects.find((item) => item.id === target.projectId);
@@ -91,7 +94,8 @@ export default function HomePage() {
       }}
       onStop={chat.stop}
       busy={chat.busy}
-      disabled={!chat.ready || chat.loading}
+      disabled={!chat.ready || chat.loading || !models.selection}
+      modelSelector={<ModelMenu models={models} />}
     />
   );
   const notice = (
@@ -187,7 +191,7 @@ export default function HomePage() {
             contextLabel={contextLabel}
           />
         ) : target.kind === 'freechat' ? (
-          <FreeChatPage chat={freeChat} />
+          <FreeChatPage chat={freeChat} models={models} />
         ) : hasConversation ? (
           <>
             <MessageList

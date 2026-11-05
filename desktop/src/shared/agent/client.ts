@@ -10,6 +10,8 @@ import type {
   CreateProjectOptions,
   Project,
   DeleteSessionResult,
+  ModelList,
+  ModelSelection,
 } from './types';
 
 import { ServiceError } from './errors';
@@ -76,6 +78,9 @@ export function createAdkClient(baseURL: string) {
   }
 
   return {
+    async listModels(): Promise<ModelList> {
+      return (await request('/models')).json();
+    },
     async listProjects(): Promise<Project[]> {
       return (await request(projectsPath)).json();
     },
@@ -149,11 +154,11 @@ export function createAdkClient(baseURL: string) {
         })
       ).json();
     },
-    async generateTitle(text: string): Promise<string> {
+    async generateTitle(text: string, model?: ModelSelection): Promise<string> {
       const data: { title: string } = await (
         await request('/title', {
           method: 'POST',
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, model }),
           signal: AbortSignal.timeout(20_000),
         })
       ).json();
@@ -188,7 +193,7 @@ export function createAdkClient(baseURL: string) {
       ).json();
     },
     async run(
-      { sessionId, text }: RunRequest,
+      { sessionId, text, model }: RunRequest,
       onEvent: (event: AgentEvent) => void,
       signal: AbortSignal,
     ) {
@@ -201,6 +206,7 @@ export function createAdkClient(baseURL: string) {
           sessionId,
           newMessage: { role: 'user', parts: [{ text }] },
           streaming: true,
+          model,
         }),
         signal,
       });
