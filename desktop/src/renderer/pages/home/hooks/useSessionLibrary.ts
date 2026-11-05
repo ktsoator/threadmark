@@ -5,6 +5,7 @@ import type {
   CreateProjectOptions,
   CreateSessionOptions,
   Project,
+  ModelSelection,
 } from '../../../../shared/agent/types';
 import * as agent from '../../../services/agent';
 
@@ -251,7 +252,11 @@ export default function useSessionLibrary() {
     const session = await agent.renameSession(id, title);
     updateTitle(id, session.title, session.titleSource);
   }
-  async function generateTitle(id: string, text: string) {
+  async function generateTitle(
+    id: string,
+    text: string,
+    model?: ModelSelection,
+  ) {
     if (
       titleRequests.current.has(id) ||
       deleted.current.has(id) ||
@@ -264,7 +269,7 @@ export default function useSessionLibrary() {
       titleRequests.current.get(id) === token && !deleted.current.has(id);
     let title: string;
     try {
-      title = await agent.generateTitle(text);
+      title = await agent.generateTitle(text, model);
     } catch {
       // Keep the first-message title if generation fails; the conversation continues normally.
       return;

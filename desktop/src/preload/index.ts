@@ -3,6 +3,7 @@ import type { DesktopBridge } from '../shared/desktop';
 import type { AgentBridge } from '../shared/agent/types';
 
 const agent: AgentBridge = {
+  listModels: () => ipcRenderer.invoke('agent:list-models'),
   listProjects: () => ipcRenderer.invoke('agent:list-projects'),
   createProject: (options) =>
     ipcRenderer.invoke('agent:create-project', options),
@@ -18,7 +19,8 @@ const agent: AgentBridge = {
     ipcRenderer.invoke('agent:create-session', options),
   appendMessage: (id, text) =>
     ipcRenderer.invoke('agent:append-message', id, text),
-  generateTitle: (text) => ipcRenderer.invoke('agent:generate-title', text),
+  generateTitle: (text, model) =>
+    ipcRenderer.invoke('agent:generate-title', text, model),
   renameSession: (id, title, source) =>
     ipcRenderer.invoke('agent:rename-session', id, title, source),
   deleteSession: (id, cleanup) =>

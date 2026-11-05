@@ -3,11 +3,14 @@ import MessageList from '../home/components/MessageList';
 import FreeChatComposer from './components/FreeChatComposer';
 import MentionText from './components/MentionText';
 import type useFreeChat from './hooks/useFreeChat';
+import type useModels from '../home/hooks/useModels';
 
 export default function FreeChatPage({
   chat,
+  models,
 }: {
   chat: ReturnType<typeof useFreeChat>;
+  models: ReturnType<typeof useModels>;
 }) {
   return (
     <>
@@ -28,7 +31,7 @@ export default function FreeChatPage({
             <p className="mt-3 text-message text-muted-foreground">
               Write down an idea, a question, or something you learned.
               <br />
-              Type @ whenever you want a hand.
+              Type @ to choose a model whenever you want a hand.
             </p>
           </div>
         </div>
@@ -45,6 +48,7 @@ export default function FreeChatPage({
             onStop={chat.stop}
             busy={chat.generating}
             disabled={!chat.ready || chat.saving}
+            models={models}
           />
           <div
             className="min-h-6 px-3 pt-1.5 text-caption text-error [overflow-wrap:anywhere]"

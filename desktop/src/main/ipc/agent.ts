@@ -28,6 +28,7 @@ export function registerAgentHandlers() {
       }
     });
   }
+  handle('agent:list-models', client.listModels);
   handle('agent:list-projects', client.listProjects);
   handle('agent:create-project', client.createProject);
   handle('agent:rename-project', client.renameProject);

@@ -1,12 +1,14 @@
 import { ChevronRight, LoaderCircle, Wrench } from 'lucide-react';
-import { useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import { cn } from '../../../lib/cn';
-import type { ActivityBlock } from '../lib/conversation';
+import type { ActivityBlock, MessageBlock } from '../lib/conversation';
 import BashToolBlock from './BashToolBlock';
 import EditToolBlock from './EditToolBlock';
 import ReadToolBlock from './ReadToolBlock';
 import ThoughtBlock from './ThoughtBlock';
 import WriteToolBlock from './WriteToolBlock';
+
+const Markdown = lazy(() => import('../../../components/markdown/Markdown'));
 
 function ToolBlock({
   block,
@@ -58,111 +60,104 @@ export default function WorkBlock({
   active,
   onToggle,
 }: {
-  blocks: ActivityBlock[];
+  blocks: MessageBlock[];
   active: boolean;
   onToggle: () => void;
 }) {
   const contentId = useId();
-  const [expanded, setExpanded] = useState<boolean>();
-  const grouped = blocks.length > 1;
-  const failed = blocks.some(
-    (block) => block.type === 'tool' && block.status === 'error',
-  );
-  const open = !grouped || (expanded ?? (active || failed));
+  const [expanded, setExpanded] = useState<{
+    active: boolean;
+    open: boolean;
+  }>();
+  // Completing a run collapses its process, including manually opened details.
+  const open = expanded?.active === active ? expanded.open : active;
   const label = active ? 'Working…' : 'Work';
 
   return (
     <div className="min-w-0">
-      {grouped && (
+      <div className="border-b border-border pb-1">
         <button
           type="button"
           aria-label={label}
           aria-expanded={open}
           aria-controls={contentId}
-          className="flex w-fit items-center gap-2 rounded-control py-0.5 text-body text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          className="flex min-h-8 items-center gap-2 rounded-control text-body text-muted-foreground transition-colors duration-150 hover:text-foreground"
           onClick={() => {
             onToggle();
-            setExpanded(!open);
+            setExpanded({ active, open: !open });
           }}
         >
-          {active ? (
+          {active && (
             <LoaderCircle
               size={14}
               aria-hidden="true"
-              className="animate-spin"
-            />
-          ) : (
-            <ChevronRight
-              size={14}
-              aria-hidden="true"
-              className={cn(
-                'transition-transform duration-180 ease-out',
-                open && 'rotate-90',
-              )}
+              className="animate-spin motion-reduce:animate-none"
             />
           )}
           <span role={active ? 'status' : undefined}>{label}</span>
-        </button>
-      )}
-      <div
-        id={contentId}
-        aria-hidden={!open}
-        inert={!open}
-        className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-180 ease-out',
-          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div
+          <ChevronRight
+            size={14}
+            aria-hidden="true"
             className={cn(
-              grouped &&
-                'mt-0.5 ml-[7px] space-y-0.5 border-l border-border pl-3.5',
+              'transition-transform duration-180 ease-out motion-reduce:transition-none',
+              open && 'rotate-90',
             )}
-          >
-            {blocks.map((block, index) =>
-              block.type === 'thought' ? (
-                <ThoughtBlock
-                  key={index}
-                  text={block.text}
-                  streaming={block.streaming}
-                  nested={grouped}
-                  onToggle={onToggle}
-                />
-              ) : block.name === 'bash' ? (
-                <BashToolBlock
-                  key={block.id}
-                  block={block}
-                  nested={grouped}
-                  onToggle={onToggle}
-                />
-              ) : block.name === 'read' ? (
-                <ReadToolBlock
-                  key={block.id}
-                  block={block}
-                  nested={grouped}
-                  onToggle={onToggle}
-                />
-              ) : block.name === 'edit' ? (
-                <EditToolBlock
-                  key={block.id}
-                  block={block}
-                  nested={grouped}
-                  onToggle={onToggle}
-                />
-              ) : block.name === 'write' ? (
-                <WriteToolBlock
-                  key={block.id}
-                  block={block}
-                  nested={grouped}
-                  onToggle={onToggle}
-                />
-              ) : (
-                <ToolBlock key={block.id} block={block} nested={grouped} />
-              ),
-            )}
-          </div>
-        </div>
+          />
+        </button>
+      </div>
+      <div id={contentId} hidden={!open} className="space-y-1 pt-2">
+        {open &&
+          blocks.map((block, index) =>
+            block.type === 'text' ? (
+              <Suspense
+                key={index}
+                fallback={
+                  <div className="text-message whitespace-pre-wrap [overflow-wrap:anywhere]">
+                    {block.text}
+                  </div>
+                }
+              >
+                <Markdown text={block.text} streaming={block.streaming} />
+              </Suspense>
+            ) : block.type === 'thought' ? (
+              <ThoughtBlock
+                key={index}
+                text={block.text}
+                streaming={block.streaming}
+                onToggle={onToggle}
+              />
+            ) : block.name === 'bash' ? (
+              <BashToolBlock
+                key={block.id}
+                block={block}
+                nested={false}
+                onToggle={onToggle}
+              />
+            ) : block.name === 'read' ? (
+              <ReadToolBlock
+                key={block.id}
+                block={block}
+                nested={false}
+                onToggle={onToggle}
+              />
+            ) : block.name === 'edit' ? (
+              <EditToolBlock
+                key={block.id}
+                block={block}
+                nested={false}
+                onToggle={onToggle}
+              />
+            ) : block.name === 'write' ? (
+              <WriteToolBlock
+                key={block.id}
+                block={block}
+                nested={false}
+                onToggle={onToggle}
+              />
+            ) : (
+              <ToolBlock key={block.id} block={block} nested={false} />
+            ),
+          )}
       </div>
     </div>
   );
