@@ -15,14 +15,18 @@ import (
 )
 
 type readArgs struct {
-	Path   string `json:"path" jsonschema:"Path to the text file, relative or absolute."`
+	Path   string `json:"path" jsonschema:"Path to an existing UTF-8 text file, relative to the working directory or absolute."`
 	Offset int    `json:"offset,omitempty" jsonschema:"First line to read (1-based). Omit or use zero to start at line 1."`
 	Limit  int    `json:"limit,omitempty" jsonschema:"Maximum lines to read. Omit or use zero for 2000. Values above 2000 are capped."`
 }
 
+const description = `Read an existing UTF-8 text file. Use this to inspect file contents before editing; it does not return image attachments.
+Use offset and limit to select lines. Output contains plain text without line numbers, limited to 2000 complete lines or 50 KiB per call, whichever is reached first.
+When truncated is true and nextOffset is provided, use it as the next offset to continue. If a single line exceeds the byte limit, use bash to inspect a bounded byte range.`
+
 // New creates the read tool using cwd as its working directory.
 func New(cwd string) (tool.Tool, error) {
-	return toolutil.New("read", "Read a UTF-8 text file, up to 2000 lines or 50 KiB per call. Use offset and limit to select lines. When truncated, use nextOffset as offset to continue; output contains only complete lines.",
+	return toolutil.New("read", description,
 		func(ctx agent.Context, args readArgs) (toolutil.Result, error) {
 			if args.Offset < 0 || args.Limit < 0 {
 				return toolutil.Result{}, fmt.Errorf("offset and limit must not be negative")

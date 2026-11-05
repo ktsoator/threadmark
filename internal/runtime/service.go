@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"errors"
-	"fmt"
 	"iter"
 	"maps"
 	"strings"
@@ -97,16 +96,11 @@ func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (*PreparedRun
 	}
 	assistant, err := llmagent.New(llmagent.Config{
 		Name: "assistant", Model: s.model,
-		Description: "A general-purpose assistant that can read, edit, and write files and run Bash commands.",
-		Instruction: fmt.Sprintf(`You are a friendly and accurate general-purpose assistant. Respond concisely in English by default, unless the user requests another language. Clearly state when you are uncertain.
-
-Working directory: %s
-Relative file paths and Bash commands use this directory. Absolute paths are also supported.
-Use read to inspect text files before editing.
-Use edit for targeted changes and write for new files or complete rewrites.
-Use bash to list and search files and to run programs or tests. Each call starts a fresh shell.
-Check tool errors and command exit codes, and use the results to decide what to do next.
-Report changes and verification accurately. Do not claim an operation succeeded unless its tool result confirms it.`, path),
+		Description: "An assistant for understanding projects, working with files, and running commands.",
+		// Keep directory names literal, including braces that ADK templates would expand.
+		InstructionProvider: func(agent.ReadonlyContext) (string, error) {
+			return systemPrompt(path), nil
+		},
 		Tools: localTools, Toolsets: []tool.Toolset{skillTools},
 		OnToolErrorCallbacks: []llmagent.OnToolErrorCallback{tools.RecoverError},
 	})

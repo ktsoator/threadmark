@@ -17,13 +17,17 @@ import (
 )
 
 type bashArgs struct {
-	Command string `json:"command" jsonschema:"Bash command to execute in the working directory."`
-	Timeout int    `json:"timeout,omitempty" jsonschema:"Timeout in seconds. Omit or use zero for 60 seconds."`
+	Command string `json:"command" jsonschema:"Non-empty Bash command to run in the working directory. Quote paths containing spaces."`
+	Timeout int    `json:"timeout,omitempty" jsonschema:"Maximum runtime in seconds. Omit or use zero for 60 seconds; set a positive integer for longer commands."`
 }
+
+const description = `Run a command in a fresh, non-interactive Bash shell in the working directory. Use it to list or search files and run programs, builds, and tests. Directory and environment changes do not persist between calls.
+Waits for completion, with a default timeout of 60 seconds. Returns combined stdout and stderr in output, and exitCode when available. Check error as well as exitCode; a negative exit code means the process was terminated by a signal.
+Output keeps the last 2000 lines or 50 KiB, whichever is reached first. When truncated is true, fullOutputPath points to the complete log; use read or a focused bash command to inspect the missing portion.`
 
 // New creates the bash tool using cwd as its working directory.
 func New(cwd string) (tool.Tool, error) {
-	return toolutil.New("bash", "Run a Bash command in a fresh shell. Returns combined stdout/stderr and exitCode, keeping the last 2000 lines or 50 KiB. When truncated, fullOutputPath contains the complete log; use read or bash to inspect it. Shell state does not persist between calls.",
+	return toolutil.New("bash", description,
 		func(ctx agent.Context, args bashArgs) (toolutil.Result, error) {
 			if strings.TrimSpace(args.Command) == "" {
 				return toolutil.Result{}, fmt.Errorf("command must not be empty")
