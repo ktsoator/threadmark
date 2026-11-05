@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -64,7 +65,8 @@ func prepareModels(cfg Config) (*runtime.ModelList, runtime.ModelFactory, error)
 		}
 		list.Providers = append(list.Providers, item)
 	}
-	client := newModelHTTPClient()
+	// The run context controls request lifetime without a total stream timeout.
+	client := &http.Client{}
 	newModel := func(ctx context.Context, selection *runtime.ModelSelection) (model.LLM, error) {
 		if selection == nil {
 			selection = &defaultSelection
