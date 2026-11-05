@@ -46,7 +46,7 @@ func run() error {
 
 	router, err := server.NewRouter(server.Config{
 		Projects: application.Projects, Sessions: application.Sessions,
-		Runtime: application.Runtime, DeleteProject: application.DeleteProject,
+		Runtime: application.Runtime, Models: application.Models, DeleteProject: application.DeleteProject,
 		SkillsFor: application.SkillsFor, BindHost: bindHost,
 	})
 

@@ -17,26 +17,27 @@ Describe the main topic or task in the same language as the message.
 Use at most 80 characters. Return only the title on one line, without quotes, Markdown, or an explanation.`
 
 // GenerateTitle makes one model call without reading or modifying a conversation.
-func (s *Service) GenerateTitle(ctx context.Context, text string) (string, error) {
+func (s *Service) GenerateTitle(ctx context.Context, text string, selection *ModelSelection) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return "", session.ErrInvalidMessage
 	}
-	if s.model == nil {
-		return "", fmt.Errorf("model is not configured")
+	llm, err := s.newModel(ctx, selection)
+	if err != nil {
+		return "", err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	text = limitText(text, 4000)
 	req := &model.LLMRequest{
-		Model:    s.model.Name(),
+		Model:    llm.Name(),
 		Contents: []*genai.Content{genai.NewContentFromText(text, genai.RoleUser)},
 		Config: &genai.GenerateContentConfig{
 			SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: titlePrompt}}},
 		},
 	}
 	title := ""
-	for response, err := range s.model.GenerateContent(ctx, req, false) {
+	for response, err := range llm.GenerateContent(ctx, req, false) {
 		if err != nil {
 			return "", err
 		}

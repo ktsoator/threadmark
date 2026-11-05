@@ -15,11 +15,13 @@ type Config struct {
 	Projects       project.Service
 	Sessions       *session.Service
 	Runtime        *runtime.Service
+	Models         *runtime.ModelList
 	DeleteProject  func(context.Context, *project.DeleteRequest) error
 	SkillsFor      func(context.Context, session.DirectoryContext) (*skills.Service, error)
 	BindHost       string
 	AllowedOrigins []string
 	MaxPayloadSize int64
+	// Timeout for each SSE write, refreshed before events and heartbeats.
 	// Zero selects 120 seconds; a negative duration disables the write deadline.
 	SSEWriteTimeout time.Duration
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ktsoator/threadmark/internal/server/middleware"
+	modelhttp "github.com/ktsoator/threadmark/internal/server/models"
 	projecthttp "github.com/ktsoator/threadmark/internal/server/projects"
 	runtimehttp "github.com/ktsoator/threadmark/internal/server/runtime"
 	sessionhttp "github.com/ktsoator/threadmark/internal/server/sessions"
@@ -13,13 +14,14 @@ import (
 
 // NewRouter registers all backend routes and their shared middleware.
 func NewRouter(cfg Config) (*gin.Engine, error) {
-	if cfg.Projects == nil || cfg.Sessions == nil || cfg.Runtime == nil || cfg.DeleteProject == nil || cfg.SkillsFor == nil {
-		return nil, fmt.Errorf("project, session, runtime services and project deletion and skills coordinators are required")
+	if cfg.Projects == nil || cfg.Sessions == nil || cfg.Runtime == nil || cfg.Models == nil || cfg.DeleteProject == nil || cfg.SkillsFor == nil {
+		return nil, fmt.Errorf("project, session, runtime services, model list and project deletion and skills coordinators are required")
 	}
 	projectHandler := projecthttp.New(cfg.Projects, cfg.DeleteProject)
 	sessionHandler := sessionhttp.New(cfg.Sessions)
 	runtimeHandler := runtimehttp.New(cfg.Runtime, cfg.SSEWriteTimeout)
 	skillHandler := skillhttp.New(cfg.SkillsFor)
+	modelHandler := modelhttp.New(cfg.Models)
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 	router.HandleMethodNotAllowed = true
@@ -38,6 +40,8 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 	api.HEAD("/health", health)
 	api.GET("/list-apps", listApps)
 	api.HEAD("/list-apps", listApps)
+	api.GET("/models", modelHandler.List)
+	api.HEAD("/models", modelHandler.List)
 	api.POST("/run", runtimeHandler.Run)
 	api.POST("/run_sse", runtimeHandler.RunSSE)
 	api.POST("/title", runtimeHandler.GenerateTitle)

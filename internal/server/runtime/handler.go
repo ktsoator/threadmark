@@ -29,7 +29,7 @@ func (h *Handler) GenerateTitle(c *gin.Context) {
 	if !httpx.DecodeJSON(c, &body, false) {
 		return
 	}
-	title, err := h.service.GenerateTitle(c.Request.Context(), body.Text)
+	title, err := h.service.GenerateTitle(c.Request.Context(), body.Text, body.Model)
 	if err != nil {
 		httpx.Error(c, err)
 		return
@@ -44,11 +44,22 @@ func (h *Handler) Run(c *gin.Context) {
 	}
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
+	started := time.Now()
+	invocationID := ""
 	history := []events.Event{}
 	for event, err := range run.Events(ctx) {
+		if event != nil {
+			invocationID = event.InvocationID
+		}
+		if err == nil {
+			err = eventError(event)
+		}
 		if err != nil {
-			cancel()
-			httpx.Fail(c, http.StatusInternalServerError, "Agent execution failed.")
+			if ctx.Err() == nil {
+				logRunError(c, invocationID, started, err)
+				status, failure := classifyRunError(err)
+				c.AbortWithStatusJSON(status, failure)
+			}
 			return
 		}
 		if event != nil {
@@ -63,9 +74,11 @@ func (h *Handler) prepareRun(c *gin.Context) (*agentruntime.PreparedRun, bool) {
 	if !httpx.DecodeJSON(c, &body, false) {
 		return nil, false
 	}
+	c.Set(sessionIDKey, body.SessionID)
 	run, err := h.service.PrepareRun(c.Request.Context(), &agentruntime.RunRequest{
 		Ref:        session.Ref{AppName: body.AppName, UserID: body.UserID, SessionID: body.SessionID},
 		NewMessage: body.NewMessage, Streaming: body.Streaming, StateDelta: body.StateDelta,
+		Model: body.Model,
 	})
 	if err != nil {
 		httpx.Error(c, err)

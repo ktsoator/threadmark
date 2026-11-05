@@ -12,7 +12,6 @@ import (
 	"github.com/ktsoator/threadmark/tools"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
-	"google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool"
@@ -28,13 +27,13 @@ var (
 
 // Service prepares agent runs using the conversation service's directory.
 type Service struct {
-	model    model.LLM
+	newModel ModelFactory
 	store    session.Service
 	sessions *sessions.Service
 }
 
-func NewService(llm model.LLM, store session.Service, conversations *sessions.Service) *Service {
-	return &Service{model: llm, store: store, sessions: conversations}
+func NewService(newModel ModelFactory, store session.Service, conversations *sessions.Service) *Service {
+	return &Service{newModel: newModel, store: store, sessions: conversations}
 }
 
 type RunRequest struct {
@@ -42,6 +41,7 @@ type RunRequest struct {
 	NewMessage genai.Content
 	Streaming  bool
 	StateDelta map[string]any
+	Model      *ModelSelection
 }
 
 // PreparedRun holds the configured runner and validated request.
@@ -82,6 +82,10 @@ func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (*PreparedRun
 	if err != nil {
 		return nil, err
 	}
+	llm, err := s.newModel(ctx, req.Model)
+	if err != nil {
+		return nil, err
+	}
 	localTools, err := tools.New(path)
 	if err != nil {
 		return nil, err
@@ -95,8 +99,8 @@ func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (*PreparedRun
 		return nil, err
 	}
 	assistant, err := llmagent.New(llmagent.Config{
-		Name: "assistant", Model: s.model,
-		Description: "An assistant for understanding projects, working with files, and running commands.",
+		Name: "assistant", Model: llm,
+		Description: "A coding assistant for understanding projects, writing and debugging code, and running commands.",
 		// Keep directory names literal, including braces that ADK templates would expand.
 		InstructionProvider: func(agent.ReadonlyContext) (string, error) {
 			return systemPrompt(path), nil

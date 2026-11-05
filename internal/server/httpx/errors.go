@@ -25,6 +25,8 @@ func Error(c *gin.Context, err error) {
 	}
 	status, code := http.StatusBadRequest, ""
 	switch {
+	case errors.Is(err, runtime.ErrInvalidModel):
+		code = "INVALID_MODEL"
 	case errors.Is(err, sessions.ErrInvalidRequest), errors.Is(err, project.ErrInvalidRequest):
 		code = "INVALID_REQUEST"
 	case errors.Is(err, sessions.ErrReservedState):
