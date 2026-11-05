@@ -21,6 +21,7 @@ type Config struct {
 	BindHost       string
 	AllowedOrigins []string
 	MaxPayloadSize int64
+	// Timeout for each SSE write, refreshed before events and heartbeats.
 	// Zero selects 120 seconds; a negative duration disables the write deadline.
 	SSEWriteTimeout time.Duration
 }

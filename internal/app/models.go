@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ktsoator/threadmark/internal/runtime"
 	"github.com/ktsoator/threadmark/model/openaimodel"
@@ -66,7 +64,7 @@ func prepareModels(cfg Config) (*runtime.ModelList, runtime.ModelFactory, error)
 		}
 		list.Providers = append(list.Providers, item)
 	}
-	client := &http.Client{Timeout: 90 * time.Second}
+	client := newModelHTTPClient()
 	newModel := func(ctx context.Context, selection *runtime.ModelSelection) (model.LLM, error) {
 		if selection == nil {
 			selection = &defaultSelection
