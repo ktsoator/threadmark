@@ -100,7 +100,7 @@ func (s *Service) PrepareRun(ctx context.Context, req *RunRequest) (*PreparedRun
 	}
 	assistant, err := llmagent.New(llmagent.Config{
 		Name: "assistant", Model: llm,
-		Description: "An assistant for understanding projects, working with files, and running commands.",
+		Description: "A coding assistant for understanding projects, writing and debugging code, and running commands.",
 		// Keep directory names literal, including braces that ADK templates would expand.
 		InstructionProvider: func(agent.ReadonlyContext) (string, error) {
 			return systemPrompt(path), nil
